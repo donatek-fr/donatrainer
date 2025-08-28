@@ -1,8 +1,9 @@
 /* ============================================================================
-   DonaTrainer — App JS (v6.0 - Final Verified & Complete)
+   DonaTrainer — App JS (v6.1 - Final Verified & Complete)
    - Author: Mohammed Abdul Kahar / Donabil SAS
    - Contains all features: Core, PNR Servicing, Post-Ticketing,
      Commercial, Queues, Dynamic Engine, and Scenario Training.
+   - Fixed IG command alias.
 ============================================================================ */
 
 const AMX = window.AMX || (window.AMX = {});
@@ -169,6 +170,7 @@ const commands = {
         writeLine("IGNORED. NO PNR ON SCREEN.", "ok");
     }
   },
+  IG: () => commands.IR(), // Alias for IR
   RH: () => { const pnr = ensurePNR(); (pnr.history || []).forEach(h => writeLine(h, "hint")); },
   NU: (arg) => {
     const pnr = ensurePNR();
@@ -271,7 +273,7 @@ const commands = {
         writeLine(AMX.state.training.scenario.steps[0].instruction, "scenario");
     }
   },
-  HE: () => { writeLine("COMMANDS: AN, SS, NM, ER, RT, IR, RH, NU, RM, XE, SP, FXP, FQN, TTP, TWX, TRF, ITR/P, PROFILE, FXA, FXK, TTP/EMD, FCM, QP, QT, QS, CS, HE", "hint"); },
+  HE: () => { writeLine("COMMANDS: AN, SS, NM, ER, RT, IR, IG, RH, NU, RM, XE, SP, FXP, FQN, TTP, TWX, TRF, ITR/P, PROFILE, FXA, FXK, TTP/EMD, FCM, QP, QT, QS, CS, HE", "hint"); },
   CS: () => { const out = $("output"); if (out) out.innerHTML = ""; },
 };
 
