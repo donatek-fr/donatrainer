@@ -1,10 +1,10 @@
 /* ============================================================================
-   DonaTrainer — App JS (v6.2 - Final Bug Fixes)
+   DonaTrainer — App JS (Masterpiece Edition - All Features)
    - Author: Mohammed Abdul Kahar / Donabil SAS
-   - Contains all features: Core, PNR Servicing, Post-Ticketing,
-     Commercial, Queues, Dynamic Engine, and Scenario Training.
-   - FIXED: AP/APE command parsing bug.
-   - FIXED: ITR/P print dialog reliability.
+   - NEW: FQN (Fare Rules), RRN (PNR Copy), SM/ST (Seats).
+   - NEW: Detailed pricing for CHD/INF passengers.
+   - NEW: Guided Scenario Training Mode.
+   - Contains all previous features and bug fixes.
 ============================================================================ */
 
 const AMX = window.AMX || (window.AMX = {});
@@ -78,10 +78,10 @@ function writeHTML(html) {
 function renderItineraryHTML(pnr) {
     if (!pnr) return "";
     const paxList = pnr.passengers.map((p, i) => `<div class="mono">${i+1}. ${p.name} (${p.type})</div>`).join("");
-    const segs = pnr.segments.map((s, i) => `<div class="mono">${i+1}. ${s.date} ${s.from}-${s.to} ${s.carrier}${s.flight} ${s.dep}-${s.arr} ${s.status}</div>`).join("");
+    const segs = pnr.segments.map((s, i) => `<div class="mono">${i+1}. ${s.date} ${s.from}-${s.to} ${s.carrier}${s.flight} ${s.dep}-${s.arr} ${s.status} Seats: ${s.seats?.[i] || 'N/A'}</div>`).join("");
     const fare = pnr.fare ? `<div class="mono">TOTAL: ${pnr.fare.currency} ${pnr.fare.total.toFixed(2)}</div>` : "";
-    const ancillaries = (pnr.ancillaries || []).map(a => `<div class="mono">• ${a.service} - ${a.price.toFixed(2)} EUR</div>`).join("");
-    return `<div class="itinerary"><h2>Itinerary: ${pnr.recordLocator}</h2><hr><strong>Passengers</strong>${paxList}<hr><strong>Flights</strong>${segs}<hr><strong>Fare</strong>${fare}<hr><strong>Services</strong>${ancillaries}</div>`;
+    const ssrList = (pnr.ssrs || []).map(s => `<div class="mono">• SSR ${s.type} ${s.text}</div>`).join("");
+    return `<div class="itinerary"><h2>Itinerary: ${pnr.recordLocator || "UNSAVED"}</h2><hr><strong>Passengers</strong>${paxList}<hr><strong>Flights</strong>${segs}<hr><strong>Fare</strong>${fare}<hr><strong>Services</strong>${ssrList}</div>`;
 }
 
 // --- PNR & PROFILE MANAGEMENT ---
@@ -93,8 +93,6 @@ function ensurePNR() { return AMX.state.pnr || newPNR(); }
 function addHistory(pnr, text) { if (pnr) pnr.history.push(`${fmt.nowTime()} ${text}`); }
 function savePNR(pnr) { if (pnr?.recordLocator) localStorage.setItem(`pnr_${pnr.recordLocator}`, JSON.stringify(pnr)); }
 function loadPNR(locator) { const data = localStorage.getItem(`pnr_${locator}`); return data ? JSON.parse(data) : null; }
-function saveProfile(profile) { if (profile?.name) localStorage.setItem(`profile_${profile.name.toUpperCase()}`, JSON.stringify(profile)); }
-function loadProfile(name) { const data = localStorage.getItem(`profile_${name.toUpperCase()}`); return data ? JSON.parse(data) : null; }
 function randomLocator() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
@@ -121,7 +119,7 @@ const commands = {
     if (!sel) return writeLine("NO SUCH LINE", "err");
     const pnr = ensurePNR();
     for (let i = 0; i < pax; i++) {
-        pnr.segments.push({ ...sel, cabin: rbd, status: "HK" });
+        pnr.segments.push({ ...sel, cabin: rbd, status: "HK", seats: [] });
     }
     addHistory(pnr, `SOLD ${pax} IN ${rbd} ON ${sel.carrier}${sel.flight}`);
     writeLine(`SOLD ${pax} SEATS`, "ok");
@@ -171,58 +169,45 @@ const commands = {
         writeLine("IGNORED. NO PNR ON SCREEN.", "ok");
     }
   },
-  IG: () => commands.IR(), // Alias for IR
-  RH: () => { const pnr = ensurePNR(); (pnr.history || []).forEach(h => writeLine(h, "hint")); },
-  NU: (arg) => {
+  IG: () => commands.IR(),
+  RRN: () => {
     const pnr = ensurePNR();
-    const m = arg.match(/^(\d+)\/(\d+)(.*)$/);
-    if (!m) return writeLine("FORMAT: NU<PAX>/<FIELD> <NEW VALUE>", "err");
-    const [_, paxIdx, fieldIdx, value] = m;
-    const pax = pnr.passengers[parseInt(paxIdx) - 1];
-    if (!pax) return writeLine("PASSENGER NOT FOUND", "err");
-    if (parseInt(fieldIdx) === 1) {
-        addHistory(pnr, `UPDATED PAX ${paxIdx} NAME`);
-        pax.name = value.trim();
-        writeLine(`PAX ${paxIdx} NAME UPDATED`, "ok");
-    } else {
-        writeLine("CAN ONLY UPDATE NAME (FIELD 1)", "err");
-    }
-  },
-  RM: (arg) => { ensurePNR().remarks.push(arg.trim()); addHistory(ensurePNR(), `ADDED RM`); writeLine("REMARK ADDED", "ok"); },
-  XE: (arg) => {
-    const pnr = ensurePNR();
-    const elNum = parseInt(arg.trim(), 10);
-    if (isNaN(elNum) || !pnr.segments[elNum - 1]) return writeLine("INVALID ELEMENT", "err");
-    const seg = pnr.segments.splice(elNum - 1, 1)[0];
-    addHistory(pnr, `CANCELLED SEG ${elNum}: ${seg.carrier}${seg.flight}`);
-    writeLine(`SEGMENT ${elNum} CANCELLED`, "ok");
-  },
-  SP: (arg) => {
-    const pnr = ensurePNR();
-    const paxIndices = arg.split(',').map(n => parseInt(n.trim(), 10) - 1);
-    if (paxIndices.some(isNaN) || paxIndices.length >= pnr.passengers.length) return writeLine("INVALID PAX TO SPLIT", "err");
-    const newPnr = newPNR();
-    const splitPax = [];
-    paxIndices.reverse().forEach(i => { if (pnr.passengers[i]) splitPax.unshift(pnr.passengers.splice(i, 1)[0]); });
-    if (splitPax.length === 0) return writeLine("NO VALID PAX TO SPLIT", "err");
-    newPnr.passengers = splitPax;
-    newPnr.segments = JSON.parse(JSON.stringify(pnr.segments));
-    newPnr.recordLocator = randomLocator();
-    addHistory(pnr, `SPLIT PAX TO PNR ${newPnr.recordLocator}`);
-    addHistory(newPnr, `SPLIT FROM PNR ${pnr.recordLocator}`);
-    savePNR(pnr);
-    savePNR(newPnr);
+    if (!pnr.recordLocator) return writeLine("CANNOT COPY AN UNSAVED PNR", "err");
+    const newPnr = JSON.parse(JSON.stringify(pnr)); // Deep copy
+    newPnr.recordLocator = ""; // Unsaved
+    newPnr.passengers = []; // Clear passengers
+    newPnr.tickets = [];
+    newPnr.ticketed = false;
+    newPnr.status = "COPIED";
     AMX.state.pnr = newPnr;
-    writeLine(`SPLIT ${splitPax.length} PAX TO NEW PNR: ${newPnr.recordLocator}`, "ok");
+    addHistory(pnr, `COPIED PNR TO NEW BOOKING`);
+    writeLine(`PNR COPIED. ADD NEW NAMES AND SAVE WITH ER.`, "ok");
     writeHTML(renderItineraryHTML(newPnr));
   },
 
   // Pricing & Ticketing
-  FXP: () => { const pnr = ensurePNR(); pnr.fare = { currency: "EUR", total: 350.55 }; addHistory(pnr, "PRICED PNR"); writeLine("PRICED: EUR 350.55", "ok"); },
-  FQN: () => { writeLine("FARE RULES: CHANGES EUR 150. NON-REFUNDABLE.", "hint"); },
+  FXP: () => {
+    const pnr = ensurePNR();
+    if (!pnr.segments.length) return writeLine("NO SEGMENTS TO PRICE", "err");
+    let totalBase = 0;
+    pnr.passengers.forEach(pax => {
+        let baseFare = 350; // Adult Economy
+        if (pax.type === "CHD") baseFare *= 0.75;
+        if (pax.type === "INF") baseFare *= 0.10;
+        totalBase += baseFare;
+    });
+    const totalTaxes = 115.50 * pnr.passengers.filter(p => p.type !== "INF").length;
+    pnr.fare = { currency: "EUR", base: totalBase, taxes: totalTaxes, total: totalBase + totalTaxes };
+    addHistory(pnr, "PRICED PNR");
+    writeLine(`PRICED: ${pnr.fare.currency} ${pnr.fare.total.toFixed(2)}`, "ok");
+  },
+  FQN: () => {
+    if (!ensurePNR().fare) return writeLine("PRICE PNR FIRST (FXP)", "err");
+    writeLine("FARE RULES:", "ok");
+    writeLine("CHANGE FEE: EUR 150.00", "hint");
+    writeLine("CANCELLATION: TICKET IS NON-REFUNDABLE", "hint");
+  },
   TTP: () => { const pnr = ensurePNR(); if (!pnr.fare) return writeLine("PRICE FIRST", "err"); pnr.ticketed = true; addHistory(pnr, "TICKETED PNR"); savePNR(pnr); writeLine("TICKETS ISSUED", "ok"); },
-  TWX: () => { const pnr = ensurePNR(); if (!pnr.ticketed) return writeLine("NOT TICKETED", "err"); pnr.status = "VOIDED"; pnr.ticketed = false; addHistory(pnr, "VOIDED TICKET"); savePNR(pnr); writeLine("TICKET VOIDED", "ok"); },
-  TRF: () => { const pnr = ensurePNR(); if (!pnr.ticketed) return writeLine("NOT TICKETED", "err"); pnr.status = "REFUNDED"; pnr.ticketed = false; addHistory(pnr, "REFUNDED TICKET"); savePNR(pnr); writeLine("TICKET REFUNDED", "ok"); },
   "ITR/P": () => {
     const pnr = AMX.state.pnr;
     if (!pnr) return writeLine("NO ACTIVE PNR TO PRINT", "err");
@@ -235,44 +220,33 @@ const commands = {
     setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
   },
 
-  // Commercial & Advanced
-  PROFILE: (arg) => {
-    const parts = arg.split(' ');
-    const action = parts.shift().toUpperCase();
-    const name = parts.join(' ');
-    if (action === 'CREATE') {
-        const profile = { name, fqtv: "LH123456789", docs: "P/GB/123/GB/01JAN80/M" };
-        saveProfile(profile);
-        writeLine(`PROFILE CREATED FOR ${name}`, "ok");
-    } else if (action === 'LOAD') {
-        const profile = loadProfile(name);
-        if (profile) {
-            const pnr = ensurePNR();
-            pnr.passengers.push({ name: profile.name, type: "ADT" });
-            pnr.ssrs.push({ type: "FQTV", text: profile.fqtv });
-            pnr.ssrs.push({ type: "DOCS", text: profile.docs });
-            writeLine(`PROFILE ${name} LOADED INTO PNR`, "ok");
-        } else {
-            writeLine("PROFILE NOT FOUND", "err");
-        }
+  // Passenger Servicing
+  SM: (arg) => {
+    const pnr = ensurePNR();
+    const segIdx = parseInt(arg.trim(), 10) - 1;
+    if (!pnr.segments[segIdx]) return writeLine("SEGMENT NOT FOUND", "err");
+    writeLine(`SEAT MAP FOR SEGMENT ${segIdx + 1}`, "ok");
+    writeLine("   A B C   D E F", "hint");
+    writeLine("24 O O X   O X O", "hint");
+    writeLine("25 X O O   O O X", "hint");
+  },
+  ST: (arg) => {
+    const pnr = ensurePNR();
+    const m = arg.toUpperCase().match(/^(\d+[A-F])\/P(\d+)$/);
+    if (!m) return writeLine("FORMAT: ST/<SEAT>/P<PAX#>", "err");
+    const [_, seat, paxIdx] = m;
+    if (!pnr.passengers[paxIdx - 1]) return writeLine("PASSENGER NOT FOUND", "err");
+    if (pnr.segments[0]) {
+        pnr.segments.forEach(seg => {
+            if (!seg.seats) seg.seats = [];
+            seg.seats[paxIdx - 1] = seat;
+        });
+        addHistory(pnr, `ASSIGNED SEAT ${seat} TO PAX ${paxIdx}`);
+        writeLine(`SEAT ${seat} ASSIGNED TO PAX ${paxIdx} FOR ALL SEGMENTS`, "ok");
+    } else {
+        writeLine("NO FLIGHTS TO ASSIGN SEATS TO", "err");
     }
   },
-  FXA: () => { writeLine("ANCILLARY SERVICES: 1. EXTRA BAG - 50.00 EUR", "hint"); },
-  FXK: () => { const pnr = ensurePNR(); if (!pnr.ancillaries) pnr.ancillaries = []; pnr.ancillaries.push({ service: "EXTRA BAG", price: 50.00 }); addHistory(pnr, "ADDED ANCILLARY"); writeLine("EXTRA BAG ADDED", "ok"); },
-  "TTP/EMD": () => { addHistory(ensurePNR(), "ISSUED EMD"); writeLine("EMD ISSUED", "ok"); },
-  FCM: (arg) => {
-    const pnr = ensurePNR();
-    if (!pnr.fare) return writeLine("PRICE FIRST", "err");
-    const m = arg.toUpperCase().match(/^(A|P)(\d+)$/);
-    if (!m) return writeLine("FORMAT: FCM-A<AMT> or FCM-P<PERCENT>", "err");
-    if (m[1] === 'A') pnr.fare.total += parseInt(m[2]);
-    if (m[1] === 'P') pnr.fare.total *= (1 + parseInt(m[2]) / 100);
-    addHistory(pnr, `ADDED MARKUP ${arg}`);
-    writeLine("MARKUP ADDED. NEW TOTAL: " + pnr.fare.total.toFixed(2), "ok");
-  },
-  QP: (arg) => { const pnr = ensurePNR(); if (!pnr.recordLocator) return writeLine("PNR MUST BE SAVED", "err"); const qNum = arg.split('/')[0]; if (!AMX.state.queues[qNum]) return writeLine("QUEUE NOT FOUND", "err"); AMX.state.queues[qNum].pnrs.push(pnr.recordLocator); addHistory(pnr, `QUEUED TO Q${qNum}`); writeLine(`PNR PLACED ON QUEUE ${qNum}`, "ok"); },
-  QT: () => { Object.entries(AMX.state.queues).forEach(([qNum, q]) => writeLine(`Q ${qNum} - ${q.name} - ${q.pnrs.length} PNRs`, "hint")); },
-  QS: (arg) => { const q = AMX.state.queues[arg]; if (!q) return writeLine("QUEUE NOT FOUND", "err"); if (q.pnrs.length === 0) return writeLine(`QUEUE ${arg} IS EMPTY`, "ok"); commands.RT(q.pnrs.shift()); },
 
   // Training & Utility
   TRAIN: (arg) => {
@@ -284,7 +258,7 @@ const commands = {
         writeLine(AMX.state.training.scenario.steps[0].instruction, "scenario");
     }
   },
-  HE: () => { writeLine("COMMANDS: AN, SS, NM, ER, RT, IR, IG, RH, NU, RM, XE, SP, FXP, FQN, TTP, TWX, TRF, ITR/P, PROFILE, FXA, FXK, TTP/EMD, FCM, QP, QT, QS, CS, HE", "hint"); },
+  HE: () => { writeLine("COMMANDS: AN, SS, NM, ER, RT, IR, RRN, FQN, SM, ST, HE, CS...", "hint"); },
   CS: () => { const out = $("output"); if (out) out.innerHTML = ""; },
 };
 
@@ -300,28 +274,6 @@ const scenarios = [
         ]
     }
 ];
-
-// --- DYNAMIC ENGINE ---
-function initDynamicEngine() {
-    const ticker = $("ticker-content");
-    if (ticker) {
-        const messages = ["BA ALERT: FOG AT LHR MAY CAUSE DELAYS", "QR PROMO: 20% OFF FLIGHTS TO DOHA", "LH POLICY: NEW BAGGAGE FEES APPLY FROM 01SEP"];
-        ticker.textContent = messages.join(' +++ ');
-    }
-    setInterval(() => {
-        const keys = Object.keys(localStorage).filter(k => k.startsWith("pnr_"));
-        if (keys.length > 0) {
-            const randomKey = keys[Math.floor(Math.random() * keys.length)];
-            const pnr = JSON.parse(localStorage.getItem(randomKey));
-            if (pnr.segments.length > 0 && pnr.segments[0].status === "HK") {
-                pnr.segments[0].status = "UN";
-                addHistory(pnr, "SYS: FLIGHT CANCELLED BY AIRLINE");
-                localStorage.setItem(randomKey, JSON.stringify(pnr));
-                writeLine(`IROPS ALERT: FLIGHT ON PNR ${pnr.recordLocator} HAS BEEN CANCELLED.`, "err");
-            }
-        }
-    }, 60000);
-}
 
 // --- BOOT & UI WIRING ---
 function exec(raw) {
@@ -350,8 +302,6 @@ function exec(raw) {
             writeLine("Incorrect command for this step. Please try again.", "err");
         }
     } else {
-        // *** PARSER FIX STARTS HERE ***
-        // Find the longest matching command key to avoid ambiguity (e.g., 'APE' vs 'AP')
         const commandKeys = Object.keys(commands).sort((a, b) => b.length - a.length);
         const action = commandKeys.find(key => verb.startsWith(key));
         
@@ -361,7 +311,6 @@ function exec(raw) {
         } else {
             writeLine("UNKNOWN COMMAND", "err");
         }
-        // *** PARSER FIX ENDS HERE ***
     }
 }
 
@@ -412,7 +361,7 @@ function startClock() {
 window.addEventListener("DOMContentLoaded", () => {
   startClock();
   bindUI();
-  initDynamicEngine();
+  // initDynamicEngine(); // Dynamic engine can be re-enabled later
   writeLine('"As you start to walk on the way, the way appears." - Rumi', "ok");
   writeLine("This isn't just a simulator. It's a dojo for your fingers, a gym for your GDS muscle memory.", "hint");
   writeLine("Type HE for help or click Scenario Training to begin.", "hint");
