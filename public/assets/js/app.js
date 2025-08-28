@@ -1,9 +1,10 @@
 /* ============================================================================
-   DonaTrainer — App JS (v6.1 - Final Verified & Complete)
+   DonaTrainer — App JS (v6.2 - Final Bug Fixes)
    - Author: Mohammed Abdul Kahar / Donabil SAS
    - Contains all features: Core, PNR Servicing, Post-Ticketing,
      Commercial, Queues, Dynamic Engine, and Scenario Training.
-   - Fixed IG command alias.
+   - FIXED: AP/APE command parsing bug.
+   - FIXED: ITR/P print dialog reliability.
 ============================================================================ */
 
 const AMX = window.AMX || (window.AMX = {});
@@ -222,7 +223,17 @@ const commands = {
   TTP: () => { const pnr = ensurePNR(); if (!pnr.fare) return writeLine("PRICE FIRST", "err"); pnr.ticketed = true; addHistory(pnr, "TICKETED PNR"); savePNR(pnr); writeLine("TICKETS ISSUED", "ok"); },
   TWX: () => { const pnr = ensurePNR(); if (!pnr.ticketed) return writeLine("NOT TICKETED", "err"); pnr.status = "VOIDED"; pnr.ticketed = false; addHistory(pnr, "VOIDED TICKET"); savePNR(pnr); writeLine("TICKET VOIDED", "ok"); },
   TRF: () => { const pnr = ensurePNR(); if (!pnr.ticketed) return writeLine("NOT TICKETED", "err"); pnr.status = "REFUNDED"; pnr.ticketed = false; addHistory(pnr, "REFUNDED TICKET"); savePNR(pnr); writeLine("TICKET REFUNDED", "ok"); },
-  "ITR/P": () => { const pnr = AMX.state.pnr; if (!pnr) return writeLine("NO ACTIVE PNR", "err"); writeHTML(renderItineraryHTML(pnr)); },
+  "ITR/P": () => {
+    const pnr = AMX.state.pnr;
+    if (!pnr) return writeLine("NO ACTIVE PNR TO PRINT", "err");
+    const html = renderItineraryHTML(pnr);
+    writeHTML(html);
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`<!doctype html><html><head><title>Itinerary</title><link rel="stylesheet" href="assets/css/base.css"><link rel="stylesheet" href="assets/css/app.css"><style>body{background:#fff!important;color:#000!important;}</style></head><body>${html}</body></html>`);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
+  },
 
   // Commercial & Advanced
   PROFILE: (arg) => {
@@ -339,13 +350,18 @@ function exec(raw) {
             writeLine("Incorrect command for this step. Please try again.", "err");
         }
     } else {
-        const action = Object.keys(commands).find(key => verb.startsWith(key));
+        // *** PARSER FIX STARTS HERE ***
+        // Find the longest matching command key to avoid ambiguity (e.g., 'APE' vs 'AP')
+        const commandKeys = Object.keys(commands).sort((a, b) => b.length - a.length);
+        const action = commandKeys.find(key => verb.startsWith(key));
+        
         if (action) {
-            const effectiveArg = verb.length > action.length ? verb.slice(action.length) + arg : arg;
-            commands[action](effectiveArg.trim());
+            const effectiveArg = s.slice(action.length).trim();
+            commands[action](effectiveArg);
         } else {
             writeLine("UNKNOWN COMMAND", "err");
         }
+        // *** PARSER FIX ENDS HERE ***
     }
 }
 
