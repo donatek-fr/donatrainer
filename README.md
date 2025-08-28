@@ -2,9 +2,13 @@
 
 DonaTrainer is a free, open-source, browser-based Amadeus GDS simulator designed for aspiring and current travel professionals. It provides a realistic, consequence-free environment to practice and master the complete cryptic command workflow, from booking and PNR management to ticketing and post-ticketing changes.
 
-**[➡️ Launch the Simulator](https://donatek-fr.github.io/donatrainer/public/app/)**
+**[➡️ Launch the Simulator](https://donatrainer.donabil.com)**
 
-![DonaTrainer Screenshot](https://raw.githubusercontent.com/donatek-fr/donatrainer/main/image_0437b5.png)
+### Project Gallery
+
+| Main Interface | Feature Breakdown |
+| :---: | :---: |
+| ![DonaTrainer Interface Screenshot](public/assets/img/DonaTrainer1.png) | ![DonaTrainer Features Screenshot](public/assets/img/DonaTrainer2.png) |
 
 ## The DonaTrainer Difference
 
@@ -17,19 +21,19 @@ DonaTrainer is a free, open-source, browser-based Amadeus GDS simulator designed
 DonaTrainer simulates a rich set of GDS functionalities:
 
 #### ✈️ Core Booking & PNR Management
-* **Complete Booking Flow**: `AN`, `SS`, `NM`, `AP`, `TKOK`, `RF`, `ER`.
-* **PNR Servicing**: Retrieve (`RT`), Ignore (`IR`), view History (`RH`), and add Remarks (`RM`).
-* **Advanced PNR Management**: Split PNRs (`SP`), cancel segments (`XE`), and update names (`NU`).
+* Complete Booking Flow: `AN`, `SS`, `NM`, `AP`, `TKOK`, `RF`, `ER`.
+* PNR Servicing: Retrieve (`RT`), Ignore (`IR`), view History (`RH`), and add Remarks (`RM`).
+* Advanced PNR Management: Split PNRs (`SP`), cancel segments (`XE`), and update names (`NU`).
 
 ####  ticketing & Commercials
-* **Pricing & Ticketing**: Price itineraries (`FXP`), display fare rules (`FQN`), and issue tickets (`TTP`).
-* **Post-Ticketing**: Simulate same-day voids (`TWX`) and process refunds (`TRF`).
-* **Ancillary Services**: Sell extra services (`FXA`, `FXK`) and add agency markups (`FCM`).
+* Pricing & Ticketing: Price itineraries (`FXP`), display fare rules (`FQN`), and issue tickets (`TTP`).
+* Post-Ticketing: Simulate same-day voids (`TWX`) and process refunds (`TRF`).
+* Ancillary Services: Sell extra services (`FXA`, `FXK`) and add agency markups (`FCM`).
 
 #### 🧠 Dynamic & Realistic Engine
-* **Irregular Operations (IROPS)**: The system randomly cancels flights to simulate airline disruptions.
-* **Guided Scenarios**: A built-in training mode guides you through real-world booking scenarios.
-* **Queue Management**: Place PNRs on queues (`QP`), view queues (`QT`), and action them (`QS`).
+* Irregular Operations (IROPS): The system randomly cancels flights to simulate airline disruptions.
+* Guided Scenarios: A built-in training mode guides you through real-world booking scenarios.
+* Queue Management: Place PNRs on queues (`QP`), view queues (`QT`), and action them (`QS`).
 
 ## Getting Started
 
