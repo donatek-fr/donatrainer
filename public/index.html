@@ -40,29 +40,86 @@
       </div>
     </section>
 
-    <!-- Why DonaTrainer Section -->
-    <section class="section">
+    <!-- Tutorial Section -->
+    <section id="guide" class="section alt">
         <div class="container">
-            <h2>The DonaTrainer Difference</h2>
-            <div class="grid-layout cols-3">
-                <div class="feature-card">
-                    <h3>The Ultimate Sandbox</h3>
-                    <p>Practice without consequence. Make mistakes, learn the flow, and build the confidence to perform flawlessly on a live system.</p>
+            <h2>The Complete Amadeus Tutorial: From Zero to Ticketed</h2>
+            <p class="section-subtitle">This guide is your all-in-one resource for learning the Amadeus booking flow. Launch the simulator and enter these commands exactly as shown to go from a blank screen to a fully built PNR. No prior experience needed!</p>
+            <div class="tutorial-layout">
+                <!-- Step 1 -->
+                <div class="tutorial-card">
+                    <div class="tutorial-step-number">1</div>
+                    <h3>Search for Availability (AN)</h3>
+                    <p>Every booking begins with a question: "What's available?" The `AN` (Availability Neutral) command is your key. The format is the command, the date (DDMMM), the 3-letter departure city code, and the 3-letter arrival city code.</p>
+                    <p><strong>Your Entry:</strong></p>
+                    <code>AN15DECFRAJFK</code>
+                    <div class="pro-tip">
+                        <strong>Explanation:</strong> You are asking the system for all available flights on **15 December** from **Frankfurt (FRA)** to **New York (JFK)**. The simulator will return a list of mock flights, each with a line number, airline, flight number, times, and available fare classes (like J, Y, M, K).
+                    </div>
                 </div>
-                <div class="feature-card">
-                    <h3>Real-World Chaos</h3>
-                    <p>Airlines cancel flights. Clients change plans. Our dynamic engine throws real-world problems at you, forging you into a master problem-solver.</p>
+                <!-- Step 2 -->
+                <div class="tutorial-card">
+                    <div class="tutorial-step-number">2</div>
+                    <h3>Sell a Seat (SS)</h3>
+                    <p>From the availability list, you must select a flight and "sell" a seat to temporarily hold it for your client. The `SS` command requires the number of passengers, the specific fare class you want, and the line number from the list.</p>
+                    <p><strong>Your Entry:</strong></p>
+                    <code>SS1Y1</code>
+                    <div class="pro-tip">
+                        <strong>Explanation:</strong> This command tells the system to sell **1** seat in **Y** (full economy) class from line number **1** of the availability display. The system will respond with the flight details, confirming the seat is held. This is the first step in building the PNR (Passenger Name Record).
+                    </div>
                 </div>
-                <div class="feature-card">
-                    <h3>For the Community</h3>
-                    <p>This is our gift to the travel industry. A powerful, open-source tool from Donabil, built to be free and accessible to every aspiring agent.</p>
+                <!-- Step 3 -->
+                <div class="tutorial-card">
+                    <div class="tutorial-step-number">3</div>
+                    <h3>Add Passenger Name (NM)</h3>
+                    <p>A booking is useless without a name. The `NM` (Name) command is a mandatory element. The format is critical: `NM` followed by the number of passengers, surname, a slash, first name, and title (MR, MRS, MSTR for a child, MISS).</p>
+                    <p><strong>Your Entry:</strong></p>
+                    <code>NM1SMITH/JOHN MR</code>
+                    <div class="pro-tip">
+                        <strong>Explanation:</strong> This adds **1** passenger named **John Smith** to the booking. In the real world, this must match the passport exactly. An incorrect name can result in the passenger being denied boarding.
+                    </div>
+                </div>
+                <!-- Step 4 -->
+                <div class="tutorial-card">
+                    <div class="tutorial-step-number">4</div>
+                    <h3>Add Contact Information (AP/APE)</h3>
+                    <p>Airlines require a way to contact the passenger in case of flight changes. You must add at least one contact element. `AP` is for phone numbers and `APE` is for email.</p>
+                    <p><strong>Your Entries:</strong></p>
+                    <code>AP +1-555-123-4567 - PASSENGER MOBILE</code>
+                    <code>APE J.SMITH@MAIL.COM</code>
+                    <div class="pro-tip">
+                        <strong>Explanation:</strong> These commands add a phone number and an email address to the PNR. This is a mandatory step before you can save the booking.
+                    </div>
+                </div>
+                <!-- Step 5 -->
+                <div class="tutorial-card">
+                    <div class="tutorial-step-number">5</div>
+                    <h3>Finalize Mandatory Fields (TKOK/RF)</h3>
+                    <p>Before saving, Amadeus requires two final pieces of information: the ticketing arrangement and your signature. `TKOK` confirms a ticket will be issued. `RF` (Received From) is your digital signature.</p>
+                    <p><strong>Your Entries:</strong></p>
+                    <code>TKOK</code>
+                    <code>RF J SMITH</code>
+                     <div class="pro-tip">
+                        <strong>Explanation:</strong> `TKOK` tells the airline system that this is a confirmed booking that will be ticketed. `RF` is an audit trail, showing who made the booking (in this case, you received the request from J Smith).
+                    </div>
+                </div>
+                <!-- Step 6 -->
+                <div class="tutorial-card">
+                    <div class="tutorial-step-number">6</div>
+                    <h3>Save the Booking (ER)</h3>
+                    <p>With all mandatory elements (Name, Itinerary, Contact, Ticketing, Received From) entered, you can now save the PNR. The `ER` (End & Retrieve) command finalizes the booking and the system will generate a unique Record Locator.</p>
+                    <p><strong>Your Entry:</strong></p>
+                    <code>ER</code>
+                     <div class="pro-tip">
+                        <strong>Explanation:</strong> The 6-character code the system returns (e.g., `JX7K9P`) is the **Record Locator**. This is the unique key to this entire booking. You will use it for any future action, from reprinting the itinerary to changing the flight. Congratulations, you've created a complete PNR!
+                    </div>
                 </div>
             </div>
         </div>
     </section>
-    
+
     <!-- Cheatsheet Section -->
-    <section id="cheatsheet" class="section alt">
+    <section id="cheatsheet" class="section">
       <div class="container">
         <h2>Command & Control Center</h2>
         <div class="tabs">
@@ -70,62 +127,48 @@
                 <button class="tab-link active" data-tab="tab-1">Core Booking</button>
                 <button class="tab-link" data-tab="tab-2">PNR Servicing</button>
                 <button class="tab-link" data-tab="tab-3">Pricing & Ticketing</button>
-                <button class="tab-link" data-tab="tab-4">Commercial & Advanced</button>
-                <button class="tab-link" data-tab="tab-5">Utility & Help</button>
+                <button class="tab-link" data-tab="tab-4">Advanced</button>
             </div>
-            <!-- Tab 1: Core Booking -->
             <div id="tab-1" class="tab-content active">
                 <ul>
-                  <li><strong>AN</strong> - **Availability Neutral:** Searches for flight availability. (<code>AN15DECFRAJFK</code>)</li>
-                  <li><strong>SS</strong> - **Sell Segment:** Books a seat from the availability display. (<code>SS1Y1</code>)</li>
-                  <li><strong>NM</strong> - **Name:** Adds passenger names to the booking. (<code>NM1SMITH/JOHN MR(CHD)</code>)</li>
-                  <li><strong>AP/APE</strong> - **Address/Phone/Email:** Adds contact information. (<code>APE J.SMITH@MAIL.COM</code>)</li>
-                  <li><strong>TKOK</strong> - **Ticket OK:** Confirms that the PNR will be ticketed.</li>
-                  <li><strong>RF</strong> - **Received From:** Records who made the booking. (<code>RF J SMITH</code>)</li>
-                  <li><strong>ER</strong> - **End & Retrieve:** Saves the PNR and assigns a Record Locator.</li>
+                  <li><strong>AN</strong> - Availability (<code>AN12NOVCDGLHR</code>)</li>
+                  <li><strong>SS</strong> - Sell Segment (<code>SS1Y1</code>)</li>
+                  <li><strong>NM</strong> - Name (<code>NM1SMITH/JOHN MR(CHD)</code>)</li>
+                  <li><strong>AP/APE</strong> - Contacts (<code>AP 33-123...</code>)</li>
+                  <li><strong>TKOK</strong> - Ticketing OK</li>
+                  <li><strong>RF</strong> - Received From (<code>RF J SMITH</code>)</li>
+                  <li><strong>ER</strong> - End & Retrieve</li>
                 </ul>
             </div>
-            <!-- Tab 2: PNR Servicing -->
             <div id="tab-2" class="tab-content">
                 <ul>
-                  <li><strong>RT</strong> - **Retrieve:** Displays a PNR by its locator or redisplays the current one. (<code>RT JX7K9P</code>)</li>
-                  <li><strong>IR / IG</strong> - **Ignore & Retrieve:** Discards any unsaved changes and redisplays the PNR.</li>
-                  <li><strong>RH</strong> - **Retrieve History:** Displays the change log for the current PNR.</li>
-                  <li><strong>NU</strong> - **Name Update:** Corrects or changes a passenger name. (<code>NU1/1SMITH/JONATHAN MR</code>)</li>
-                  <li><strong>XE</strong> - **Cancel Element:** Removes a specific element. (<code>XE2</code>)</li>
-                  <li><strong>SP</strong> - **Split PNR:** Separates specific passengers into a new booking. (<code>SP 2,3</code>)</li>
-                  <li><strong>RM</strong> - **Remark:** Adds a general, non-automated note to the PNR. (<code>RM CLIENT IS A VIP</code>)</li>
-                  <li><strong>SSR</strong> - **Special Service Request:** Adds standardized requests. (<code>SSR DOCS ...</code>)</li>
+                  <li><strong>RT</strong> - Retrieve PNR (<code>RT JX7K9P</code> or <code>RT</code>)</li>
+                  <li><strong>IR</strong> - Ignore & Retrieve</li>
+                  <li><strong>RH</strong> - Retrieve History</li>
+                  <li><strong>NU</strong> - Name Update (<code>NU1/1SMITH/JONATHAN</code>)</li>
+                  <li><strong>RM</strong> - Remark (<code>RM VIP CLIENT</code>)</li>
+                  <li><strong>XE</strong> - Cancel Element (<code>XE2</code>)</li>
+                  <li><strong>SP</strong> - Split PNR (<code>SP 2,3</code>)</li>
                 </ul>
             </div>
-            <!-- Tab 3: Pricing & Ticketing -->
             <div id="tab-3" class="tab-content">
                 <ul>
-                  <li><strong>FXP</strong> - **Fare Quote Price:** Prices the itinerary and creates a stored fare (TST).</li>
-                  <li><strong>FQN</strong> - **Fare Quote Note:** Displays the rules for the stored fare.</li>
-                  <li><strong>TTP</strong> - **Ticket PNR:** Issues the electronic ticket for the stored fare.</li>
-                  <li><strong>TWX</strong> - **Ticket Work Void:** Voids a ticket on the same day it was issued.</li>
-                  <li><strong>TRF</strong> - **Ticket Refund:** Processes a refund for a ticket.</li>
-                  <li><strong>ITR/P</strong> - **Itinerary Print:** Displays and prints the full itinerary/e-ticket receipt.</li>
+                  <li><strong>FXP</strong> - Price Itinerary</li>
+                  <li><strong>FQN</strong> - Display Fare Rules</li>
+                  <li><strong>TTP</strong> - Ticket PNR</li>
+                  <li><strong>TWX</strong> - Void Ticket (same day)</li>
+                  <li><strong>TRF</strong> - Process Refund</li>
+                  <li><strong>ITR/P</strong> - Print Itinerary</li>
                 </ul>
             </div>
-            <!-- Tab 4: Commercial & Advanced -->
             <div id="tab-4" class="tab-content">
                 <ul>
-                  <li><strong>PROFILE</strong> - **Client Profile:** Creates or loads a client's saved data into a PNR. (<code>PROFILE LOAD JANE DOE</code>)</li>
-                  <li><strong>FXA / FXK</strong> - **Ancillary Services:** Displays and prices available extras like baggage.</li>
-                  <li><strong>TTP/EMD</strong> - **Issue EMD:** Issues a separate ticket for a paid ancillary service.</li>
-                  <li><strong>FCM</strong> - **Fare Commission/Markup:** Adds an agency service fee. (<code>FCM-A20</code>)</li>
-                  <li><strong>QP / QT / QS</strong> - **Queue Management:** Places, views, and works on PNRs in agency queues. (<code>QP/1/1</code>)</li>
-                </ul>
-            </div>
-            <!-- Tab 5: Utility & Help -->
-            <div id="tab-5" class="tab-content">
-                <ul>
-                  <li><strong>HE</strong> - **Help:** Displays a list of primary commands.</li>
-                  <li><strong>CS</strong> - **Clear Screen:** Clears the terminal display.</li>
-                  <li><strong>DNA</strong> - **Decode Airline:** Looks up an airline by its two-letter code. (<code>DNA BA</code>)</li>
-                  <li><strong>DACH</strong> - **Decode Airport:** Looks up an airport by its three-letter code. (<code>DACH LHR</code>)</li>
+                  <li><strong>FXA/FXK</strong> - Ancillary Services</li>
+                  <li><strong>FCM</strong> - Add Markup (<code>FCM-A20</code>)</li>
+                  <li><strong>QP/QT/QS</strong> - Queue Management</li>
+                  <li><strong>PROFILE</strong> - Client Profiles</li>
+                  <li><strong>SSR DOCS</strong> - Passport Info</li>
+                  <li><strong>CS</strong> - Clear Screen</li>
                 </ul>
             </div>
         </div>
@@ -133,45 +176,12 @@
     </section>
 
     <!-- About Donabil Section (SEO) -->
-    <section class="section">
+    <section class="section alt">
         <div class="container about-section">
             <div class="about-content">
                 <h2>A Passion Project from Donabil</h2>
                 <p>DonaTrainer was born from a simple idea: every aspiring travel professional deserves access to the best tools. Developed under the leadership of our President, <strong>Mohammed Abdul Kahar</strong>, this simulator is our commitment to providing powerful, accessible educational resources. It's our way of giving back to the community and ensuring the next generation of agents are the most skilled yet.</p>
                 <p class="honorable-mention">With honorable mention to <strong>Muhammad Ali</strong>, General Director of Donabil, for his invaluable contributions to this project.</p>
-            </div>
-        </div>
-    </section>
-
-    <!-- FAQ Section -->
-    <section id="faq" class="section alt">
-        <div class="container">
-            <h2>Frequently Asked Questions</h2>
-            <div class="faq-accordion">
-                <div class="faq-item">
-                    <button class="faq-question">Is this really free?</button>
-                    <div class="faq-answer">
-                        <p>Yes, 100%. DonaTrainer is a free, open-source project by Donabil to empower the next generation of travel professionals.</p>
-                    </div>
-                </div>
-                <div class="faq-item">
-                    <button class="faq-question">Is this a real GDS?</button>
-                    <div class="faq-answer">
-                        <p>No. This is a high-fidelity simulator using mock data. It is not connected to any live airline inventory and cannot be used for real travel.</p>
-                    </div>
-                </div>
-                <div class="faq-item">
-                    <button class="faq-question">How is my work saved?</button>
-                    <div class="faq-answer">
-                        <p>The simulator uses your browser's local storage. No data is sent to any server. Clearing your browser cache will erase your saved PNRs.</p>
-                    </div>
-                </div>
-                 <div class="faq-item">
-                    <button class="faq-question">Why is copy/paste disabled?</h3>
-                    <div class="faq-answer">
-                        <p>To build authentic muscle memory. GDS proficiency comes from practice and speed, which this feature encourages.</p>
-                    </div>
-                </div>
             </div>
         </div>
     </section>
@@ -212,14 +222,6 @@
             tabContents.forEach(c => c.classList.remove('active'));
             link.classList.add('active');
             document.getElementById(tabId).classList.add('active');
-        });
-    });
-
-    const faqQuestions = document.querySelectorAll('.faq-question');
-    faqQuestions.forEach(question => {
-        question.addEventListener('click', () => {
-            const item = question.parentElement;
-            item.classList.toggle('active');
         });
     });
 
