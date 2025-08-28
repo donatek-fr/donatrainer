@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DonaTrainer — Cryptic Terminal</title>
+  <link rel="icon" href="../assets/img/logo.svg" />
+  <link rel="stylesheet" href="../assets/css/base.css" />
+  <link rel="stylesheet" href="../assets/css/app.css" />
+</head>
+<body class="no-context-menu">
+
+  <!-- Top Bar -->
+  <header class="amx-topbar">
+    <div class="amx-wrap">
+      <a href="../index.html" class="amx-brand">
+        <img src="../assets/img/logo.svg" alt="DonaTrainer Logo" />
+      </a>
+      <div class="amx-context">
+        <span id="amxClockDate">-- --- ----</span>
+        <span id="amxClockTime">--:--:--</span>
+        <span class="divider">|</span>
+        <span>Office: <strong id="amxOffice">STRASBOURG/FR</strong></span>
+        <span class="divider">|</span>
+        <span>Agent: <strong id="amxAgent">Donatek</strong></span>
+        <span class="divider">|</span>
+        <span>User: <strong>Student</strong></span>
+      </div>
+      <div class="amx-actions">
+        <button id="btnTrain" class="amx-btn secondary">Scenario Training</button>
+        <a href="../index.html" class="amx-nav-link">Home</a>
+        <a href="https://donabil.com" target="_blank" rel="noopener" class="amx-nav-link">Donabil</a>
+        <a href="https://checkout.revolut.com/pay/454a3ea2-98ae-4c22-96a3-b9cd63a133e9" target="_blank" rel="noopener" class="amx-nav-link">❤️ Support</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="amx-main">
+    <section class="amx-panel">
+      <div class="hd">
+        <span>Training Mode · EDUCATIONAL USE ONLY</span>
+      </div>
+      <div class="bd">
+        <div id="output" aria-live="polite"></div>
+        <div class="amx-cli">
+          <input id="commandInput" class="amx-input" placeholder="Enter Amadeus command..." />
+          <button id="btnEnter" class="amx-btn primary">Enter</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="container">
+      <p>© <span id="year"></span> DonaTrainer (Donatek / Donabil SAS). Educational use only.</p>
+      <p class="footer-link"><a href="https://donabil.com" target="_blank" rel="noopener">donabil.com</a></p>
+    </div>
+  </footer>
+
+  <script src="../assets/js/app.js"></script>
+  <script>
+    document.getElementById("year").textContent = new Date().getFullYear();
+    document.addEventListener("contextmenu", e => {
+      if (document.body.classList.contains("no-context-menu")) e.preventDefault();
+    });
+  </script>
+
+</body>
+</html>

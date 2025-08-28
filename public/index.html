@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DonaTrainer — The Ultimate Amadeus GDS Simulator</title>
+  <link rel="icon" href="assets/img/logo.svg"/>
+  <meta name="description" content="DonaTrainer is a free, open-source, browser-based Amadeus GDS simulator from Donabil. Practice the complete cryptic workflow, from booking to ticketing and post-ticketing changes. Free forever." />
+  <meta name="keywords" content="Amadeus simulator, GDS training, Donabil, free GDS training, travel technology, airline reservation training, M.A. Kahar, Donatek, PNR, ticketing" />
+  <link rel="stylesheet" href="assets/css/base.css" />
+  <link rel="stylesheet" href="assets/css/home.css" />
+</head>
+<body class="no-select">
+
+  <!-- Header -->
+  <header class="site-header">
+    <div class="container">
+      <a href="index.html" class="brand">
+        <img src="assets/img/logo.svg" alt="DonaTrainer Logo"/>
+      </a>
+      <nav class="nav-actions">
+        <a href="app/index.html" class="nav-link">Launch Simulator</a>
+        <a href="https://donabil.com" target="_blank" rel="noopener" class="nav-link">Donabil</a>
+        <a href="https://donatek.fr" target="_blank" rel="noopener" class="nav-link">Donatek</a>
+        <a class="btn primary" href="https://checkout.revolut.com/pay/454a3ea2-98ae-4c22-96a3-b9cd63a133e9" target="_blank" rel="noopener">❤️ Support Project</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <!-- Hero Section -->
+    <section class="hero">
+      <div class="container">
+        <h1>Forge Your Skills. Command the Terminal.</h1>
+        <p class="tagline" id="typing-effect"></p>
+        <div class="hero-actions">
+            <a href="app/index.html" class="btn xl primary">Launch Simulator</a>
+            <a href="#cheatsheet" class="btn xl secondary">View Cheatsheet</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Why DonaTrainer Section -->
+    <section class="section">
+        <div class="container">
+            <h2>The DonaTrainer Difference</h2>
+            <div class="grid-layout cols-3">
+                <div class="feature-card">
+                    <h3>The Ultimate Sandbox</h3>
+                    <p>Practice without consequence. Make mistakes, learn the flow, and build the confidence to perform flawlessly on a live system.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>Real-World Chaos</h3>
+                    <p>Airlines cancel flights. Clients change plans. Our dynamic engine throws real-world problems at you, forging you into a master problem-solver.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>For the Community</h3>
+                    <p>This is our gift to the travel industry. A powerful, open-source tool from Donabil, built to be free and accessible to every aspiring agent.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Full Feature Breakdown Section -->
+    <section id="features" class="section">
+        <div class="container">
+            <h2>Full Feature Breakdown</h2>
+            <div class="grid-layout cols-2">
+                <div class="feature-breakdown-card">
+                    <h3>Core GDS Simulation</h3>
+                    <ul>
+                        <li>Complete booking flow (AN, SS, NM, AP, TK, RF, ER)</li>
+                        <li>Multi-class availability display</li>
+                        <li>Support for Adult, Child, and Infant passenger types</li>
+                        <li>Full pricing and ticketing simulation (FXP, TTP)</li>
+                    </ul>
+                </div>
+                <div class="feature-breakdown-card">
+                    <h3>Advanced PNR Management</h3>
+                    <ul>
+                        <li>PNR retrieval by record locator (RT)</li>
+                        <li>PNR history display (RH)</li>
+                        <li>PNR splitting for complex itinerary changes (SP)</li>
+                        <li>Name updates and remark additions (NU, RM)</li>
+                    </ul>
+                </div>
+                <div class="feature-breakdown-card">
+                    <h3>Post-Ticketing & Commercials</h3>
+                    <ul>
+                        <li>Same-day ticket voiding (TWX)</li>
+                        <li>Automated refund processing simulation (TRF)</li>
+                        <li>Ancillary service sales (FXA, FXK) and EMD issuance</li>
+                        <li>Agency markup and commission simulation (FCM)</li>
+                    </ul>
+                </div>
+                <div class="feature-breakdown-card">
+                    <h3>Dynamic & Realistic Engine</h3>
+                    <ul>
+                        <li>Irregular Operations (IROPS) engine for random flight cancellations</li>
+                        <li>Live airline teletype ticker for real-time alerts</li>
+                        <li>Client profile management to simulate repeat customers</li>
+                        <li>Guided scenario mode for structured, interactive training</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Cheatsheet Section -->
+    <section id="cheatsheet" class="section alt">
+      <div class="container">
+        <h2>Command & Control Center</h2>
+        <div class="tabs">
+            <div class="tab-nav">
+                <button class="tab-link active" data-tab="tab-1">Core Booking</button>
+                <button class="tab-link" data-tab="tab-2">PNR Servicing</button>
+                <button class="tab-link" data-tab="tab-3">Pricing & Ticketing</button>
+                <button class="tab-link" data-tab="tab-4">Advanced</button>
+            </div>
+            <div id="tab-1" class="tab-content active">
+                <ul>
+                  <li><strong>AN</strong> - Availability (<code>AN12NOVCDGLHR</code>)</li>
+                  <li><strong>SS</strong> - Sell Segment (<code>SS1Y1</code>)</li>
+                  <li><strong>NM</strong> - Name (<code>NM1SMITH/JOHN MR(CHD)</code>)</li>
+                  <li><strong>AP/APE</strong> - Contacts (<code>AP 33-123...</code>)</li>
+                  <li><strong>TKOK</strong> - Ticketing OK</li>
+                  <li><strong>RF</strong> - Received From (<code>RF J SMITH</code>)</li>
+                  <li><strong>ER</strong> - End & Retrieve</li>
+                </ul>
+            </div>
+            <div id="tab-2" class="tab-content">
+                <ul>
+                  <li><strong>RT</strong> - Retrieve PNR (<code>RT JX7K9P</code> or <code>RT</code>)</li>
+                  <li><strong>IR</strong> - Ignore & Retrieve</li>
+                  <li><strong>RH</strong> - Retrieve History</li>
+                  <li><strong>NU</strong> - Name Update (<code>NU1/1SMITH/JONATHAN</code>)</li>
+                  <li><strong>RM</strong> - Remark (<code>RM VIP CLIENT</code>)</li>
+                  <li><strong>XE</strong> - Cancel Element (<code>XE2</code>)</li>
+                  <li><strong>SP</strong> - Split PNR (<code>SP 2,3</code>)</li>
+                </ul>
+            </div>
+            <div id="tab-3" class="tab-content">
+                <ul>
+                  <li><strong>FXP</strong> - Price Itinerary</li>
+                  <li><strong>FQN</strong> - Display Fare Rules</li>
+                  <li><strong>TTP</strong> - Ticket PNR</li>
+                  <li><strong>TWX</strong> - Void Ticket (same day)</li>
+                  <li><strong>TRF</strong> - Process Refund</li>
+                  <li><strong>ITR/P</strong> - Print Itinerary</li>
+                </ul>
+            </div>
+            <div id="tab-4" class="tab-content">
+                <ul>
+                  <li><strong>FXA/FXK</strong> - Ancillary Services</li>
+                  <li><strong>FCM</strong> - Add Markup (<code>FCM-A20</code>)</li>
+                  <li><strong>QP/QT/QS</strong> - Queue Management</li>
+                  <li><strong>PROFILE</strong> - Client Profiles</li>
+                  <li><strong>SSR DOCS</strong> - Passport Info</li>
+                  <li><strong>CS</strong> - Clear Screen</li>
+                </ul>
+            </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- About Donabil Section (SEO) -->
+    <section class="section">
+        <div class="container about-section">
+            <div class="about-content">
+                <h2>A Passion Project from Donabil</h2>
+                <p>DonaTrainer was born from a simple idea: every aspiring travel professional deserves access to the best tools. Developed under the leadership of our President, <strong>Mohammed Abdul Kahar</strong>, this simulator is our commitment to providing powerful, accessible educational resources. It's our way of giving back to the community and ensuring the next generation of agents are the most skilled yet.</p>
+                <p class="honorable-mention">With honorable mention to <strong>Muhammad Ali</strong>, General Director of Donabil, for his invaluable contributions to this project.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section id="faq" class="section alt">
+        <div class="container">
+            <h2>Frequently Asked Questions</h2>
+            <div class="faq-accordion">
+                <div class="faq-item">
+                    <button class="faq-question">Is this really free?</button>
+                    <div class="faq-answer">
+                        <p>Yes, 100%. DonaTrainer is a free, open-source project by Donabil to empower the next generation of travel professionals.</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-question">Is this a real GDS?</button>
+                    <div class="faq-answer">
+                        <p>No. This is a high-fidelity simulator using mock data. It is not connected to any live airline inventory and cannot be used for real travel.</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-question">How is my work saved?</button>
+                    <div class="faq-answer">
+                        <p>The simulator uses your browser's local storage. No data is sent to any server. Clearing your browser cache will erase your saved PNRs.</p>
+                    </div>
+                </div>
+                 <div class="faq-item">
+                    <button class="faq-question">Why is copy/paste disabled?</h3>
+                    <div class="faq-answer">
+                        <p>To build authentic muscle memory. GDS proficiency comes from practice and speed, which this feature encourages.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="container">
+      <p>© <span id="year"></span> DonaTrainer (Donatek / Donabil). Educational use only. Not affiliated with any GDS.</p>
+      <p class="footer-link"><a href="https://donabil.com" target="_blank" rel="noopener">donabil.com</a></p>
+    </div>
+  </footer>
+
+  <!-- Scroll to Top Button -->
+  <button id="scrollTopBtn" title="Go to top">↑</button>
+
+  <!-- Scripts -->
+  <script>
+    const typingElement = document.getElementById("typing-effect");
+    const text = "This isn't just a simulator. It's a dojo for your fingers, a gym for your GDS muscle memory. Free, forever.";
+    let index = 0;
+    function type() {
+      if (index < text.length) {
+        typingElement.textContent += text.charAt(index);
+        index++;
+        setTimeout(type, 40);
+      }
+    }
+    type();
+
+    const tabLinks = document.querySelectorAll('.tab-link');
+    const tabContents = document.querySelectorAll('.tab-content');
+    tabLinks.forEach(link => {
+        link.addEventListener('click', () => {
+            const tabId = link.getAttribute('data-tab');
+            tabLinks.forEach(l => l.classList.remove('active'));
+            tabContents.forEach(c => c.classList.remove('active'));
+            link.classList.add('active');
+            document.getElementById(tabId).classList.add('active');
+        });
+    });
+
+    const faqQuestions = document.querySelectorAll('.faq-question');
+    faqQuestions.forEach(question => {
+        question.addEventListener('click', () => {
+            const item = question.parentElement;
+            item.classList.toggle('active');
+        });
+    });
+
+    document.addEventListener("contextmenu", e => e.preventDefault());
+    document.addEventListener("copy", e => e.preventDefault());
+    document.addEventListener("paste", e => e.preventDefault());
+    document.getElementById("year").textContent = new Date().getFullYear();
+
+    // Scroll to Top Logic
+    const scrollTopBtn = document.getElementById("scrollTopBtn");
+    window.onscroll = function() {
+        if (document.body.scrollTop > 100 || document.documentElement.scrollTop > 100) {
+            scrollTopBtn.style.display = "block";
+        } else {
+            scrollTopBtn.style.display = "none";
+        }
+    };
+    scrollTopBtn.addEventListener("click", function() {
+        window.scrollTo({top: 0, behavior: 'smooth'});
+    });
+  </script>
+
+</body>
+</html>

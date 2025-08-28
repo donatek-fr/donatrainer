@@ -1,0 +1,210 @@
+/* ==========================================================
+   DonaTrainer — App/Terminal Styles (Synced & Terminal Style)
+   ========================================================== */
+
+/* ---------- App Layout ---------- */
+html { height: 100%; }
+body {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+}
+.amx-main {
+  flex: 1 1 auto;
+  padding: 16px 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.site-footer { flex-shrink: 0; }
+
+/* ---------- Top Bar ---------- */
+.amx-topbar {
+  background: var(--panel-bg);
+  border-bottom: 1px solid var(--line-color);
+  padding: 10px 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  min-height: 60px;
+  flex-shrink: 0;
+}
+.amx-wrap {
+  width: min(1600px, 96vw);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.amx-brand img {
+    height: 40px;
+    width: auto;
+}
+
+.amx-context {
+  flex-grow: 1;
+  text-align: center;
+  color: var(--text-color);
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.amx-context strong { color: var(--heading-color); font-weight: 500; }
+.amx-context .divider { color: var(--line-color); font-size: 1rem; }
+
+.amx-actions { display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
+.amx-nav-link { font-size: 0.9rem; font-weight: 500; color: var(--text-color); transition: color 0.2s; }
+.amx-nav-link:hover { color: var(--accent-blue); }
+
+/* ---------- Buttons (Synced with Homepage) ---------- */
+.amx-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 18px;
+    border: 1px solid var(--line-color);
+    font-weight: 600;
+    border-radius: 4px;
+    cursor: pointer;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background 0.2s, transform 0.1s, border-color 0.2s;
+}
+.amx-btn.primary {
+    background-color: var(--accent-blue);
+    color: #fff;
+    border-color: var(--accent-blue);
+}
+.amx-btn.primary:hover {
+    background-color: var(--accent-blue-hover);
+    border-color: var(--accent-blue-hover);
+}
+.amx-btn.secondary {
+    background: transparent;
+    color: var(--text-color);
+}
+.amx-btn.secondary:hover {
+    border-color: var(--accent-blue);
+    background: rgba(0, 170, 255, 0.1);
+}
+
+/* ---------- Main Panel & CLI (Terminal Style) ---------- */
+.amx-panel {
+  width: min(1600px, 96vw);
+  margin: 0 auto;
+  background: var(--panel-bg);
+  border: 1px solid var(--line-color);
+  border-radius: var(--radius);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.amx-panel .hd {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+  color: #8a9cb0;
+  background: #080d14;
+  flex-shrink: 0;
+}
+.amx-panel .bd {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+#output {
+  height: auto;
+  min-height: 150px;
+  flex-grow: 1;
+  overflow-y: auto;
+  background: var(--dark-bg);
+  border: 1px solid var(--line-color);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 13px;
+  line-height: 1.6;
+}
+#output > div { padding: 2px 0; white-space: pre-wrap; }
+.cmd  { color: #A792FF; }
+.ok   { color: #23d18b; }
+.err  { color: #ff6e6e; }
+.hint { color: #61afef; }
+.scenario { color: #ffc107; font-weight: bold; border-top: 1px dashed #ffc107; border-bottom: 1px dashed #ffc107; padding: 8px 0; margin: 8px 0; }
+
+.amx-cli {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  margin-top: 16px;
+  flex-shrink: 0;
+}
+.amx-input {
+  width: 100%;
+  background: var(--panel-bg);
+  color: var(--text-color);
+  border: 1px solid var(--line-color);
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  outline: none;
+  font-family: 'Courier New', Courier, monospace;
+  transition: border-color .2s;
+}
+.amx-input:focus { border-color: var(--accent-blue); }
+
+/* ---------- Footer ---------- */
+.site-footer {
+  padding: 20px 0;
+  background: #080d14;
+  text-align: center;
+  color: #8a9cb0;
+  font-size: 0.8rem;
+  border-top: 1px solid var(--line-color);
+}
+.site-footer .container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 24px;
+    flex-wrap: wrap;
+}
+.footer-link a {
+    color: var(--text-color);
+    text-decoration: none;
+    border: 1px solid var(--line-color);
+    padding: 4px 12px;
+    border-radius: 999px;
+    transition: all 0.2s;
+}
+.footer-link a:hover {
+    background: var(--accent-blue);
+    border-color: var(--accent-blue);
+    color: #fff;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1200px) {
+  .amx-context { display: none; }
+}
+@media (max-width: 768px) {
+  .amx-wrap { flex-direction: column; gap: 10px; padding: 10px 0; }
+  .amx-actions { order: 1; width: 100%; justify-content: space-between; }
+  .site-footer .container { flex-direction: column; gap: 10px; }
+}
