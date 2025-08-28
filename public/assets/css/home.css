@@ -1,5 +1,5 @@
 /* ==========================================================
-   DonaTrainer — Landing Page Styles (Data-Rich Edition)
+   DonaTrainer — Landing Page Styles (with Tutorial)
    ========================================================== */
 
 /* ---------- Security ---------- */
@@ -25,10 +25,16 @@ body {
 }
 h1, h2, h3 { color: var(--heading-color); font-weight: 600; }
 h1 { font-size: clamp(2.5rem, 5vw, 4rem); }
-h2 { font-size: 2.2rem; text-align: center; margin-bottom: 40px; }
+h2 { font-size: 2.2rem; text-align: center; margin-bottom: 1rem; }
 h3 { font-size: 1.2rem; }
 a { color: var(--accent-blue); }
 a:hover { color: var(--accent-blue-hover); }
+.section-subtitle {
+    text-align: center;
+    max-width: 700px;
+    margin: 0 auto 40px;
+    color: #8a9cb0;
+}
 
 /* ---------- Header ---------- */
 .site-header {
@@ -73,42 +79,72 @@ a:hover { color: var(--accent-blue-hover); }
     background: rgba(0, 170, 255, 0.1);
 }
 
-/* ---------- Features & About Sections ---------- */
-.section { padding: 60px 0; }
-.section.alt { background: #080d14; }
-.grid-layout {
+/* ---------- Tutorial Section ---------- */
+.tutorial-layout {
     display: grid;
+    grid-template-columns: 1fr;
     gap: 24px;
+    max-width: 800px;
+    margin: 0 auto;
 }
-.grid-layout.cols-3 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
-.grid-layout.cols-2 { grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); }
-
-.feature-card, .feature-breakdown-card {
+.tutorial-card {
     background: var(--panel-bg);
-    padding: 2rem;
-    border-radius: var(--radius);
     border: 1px solid var(--line-color);
+    border-left: 4px solid var(--accent-blue);
+    border-radius: var(--radius);
+    padding: 2rem;
+    position: relative;
 }
-.feature-card h3, .feature-breakdown-card h3 { margin-top: 0; }
-.feature-card p, .feature-breakdown-card p { color: #8a9cb0; }
-.feature-breakdown-card ul { list-style: '✓ '; padding-left: 1.5rem; color: #8a9cb0; }
-.feature-breakdown-card li { margin-bottom: 0.5rem; }
-
-.about-section { max-width: 800px; text-align: center; }
-.about-content p { font-size: 1.1rem; line-height: 1.7; color: #8a9cb0; margin-bottom: 1rem; }
-.about-content strong { color: var(--text-color); }
-.about-content .honorable-mention {
-    margin-top: 1rem;
+.tutorial-step-number {
+    position: absolute;
+    top: 1.5rem;
+    left: -25px;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: var(--accent-blue);
+    color: #fff;
+    font-weight: 700;
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 4px solid var(--dark-bg);
 }
+.tutorial-card h3 { margin-top: 0; padding-left: 30px; }
+.tutorial-card p { color: #8a9cb0; padding-left: 30px; }
+.tutorial-card code {
+    display: block;
+    margin: 1rem 0 1rem 30px;
+    padding: 1rem;
+    background: var(--dark-bg);
+    border: 1px solid var(--line-color);
+    border-radius: var(--radius-sm);
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 1rem;
+    color: var(--text-color);
+}
+.tutorial-card .pro-tip {
+    padding: 1rem 1rem 1rem 30px;
+    margin-left: 30px;
+    border-left: 2px solid var(--line-color);
+    font-size: 0.9rem;
+    color: #8a9cb0;
+}
+.tutorial-card .pro-tip strong { color: var(--text-color); }
 
-/* ---------- Tabs ---------- */
+/* ---------- Cheatsheet Tabs ---------- */
 .tabs {
     background: var(--panel-bg);
     border-radius: var(--radius);
     border: 1px solid var(--line-color);
     overflow: hidden;
 }
-.tab-nav { display: flex; border-bottom: 1px solid var(--line-color); }
+.tab-nav {
+    display: flex;
+    border-bottom: 1px solid var(--line-color);
+    flex-wrap: wrap;
+}
 .tab-link {
     padding: 1rem 1.5rem;
     border: none;
@@ -129,42 +165,14 @@ a:hover { color: var(--accent-blue-hover); }
 .tab-content li { padding: 0.6rem 0; color: #8a9cb0; }
 .tab-content li strong { color: var(--text-color); font-weight: 600; font-family: 'Courier New', Courier, monospace; }
 
-/* ---------- FAQ Accordion ---------- */
-.faq-accordion { max-width: 800px; margin: 0 auto; }
-.faq-item { border-bottom: 1px solid var(--line-color); }
-.faq-question {
-    width: 100%;
-    padding: 1.5rem 1rem;
-    background: none;
-    border: none;
-    text-align: left;
-    color: var(--heading-color);
-    font-size: 1.1rem;
-    font-weight: 500;
-    cursor: pointer;
-    position: relative;
-    padding-right: 3rem; /* Space for icon */
-}
-.faq-question::after {
-    content: '+';
-    position: absolute;
-    right: 1rem;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 1.5rem;
-    transition: transform 0.2s;
-    color: var(--accent-blue);
-}
-.faq-answer {
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.3s ease-out;
-}
-.faq-answer p { padding: 0 1rem 1.5rem; margin: 0; color: #8a9cb0; }
-.faq-item.active .faq-question::after { transform: translateY(-50%) rotate(45deg); }
-.faq-item.active .faq-answer { max-height: 200px; }
+/* ---------- About & Footer ---------- */
+.section { padding: 60px 0; }
+.section.alt { background: #080d14; }
+.about-section { max-width: 800px; text-align: center; }
+.about-content p { font-size: 1.1rem; line-height: 1.7; color: #8a9cb0; margin-bottom: 1rem; }
+.about-content strong { color: var(--text-color); }
+.about-content .honorable-mention { margin-top: 1rem; }
 
-/* ---------- Footer ---------- */
 .site-footer {
   padding: 20px 0;
   background: #080d14;
@@ -219,10 +227,8 @@ a:hover { color: var(--accent-blue-hover); }
 }
 @media (max-width: 768px) {
     .hero { padding: 60px 0; }
-    .tab-nav { flex-direction: column; }
-    .grid-layout.cols-2 { grid-template-columns: 1fr; }
-    .site-footer .container {
-        flex-direction: column;
-        gap: 10px;
-    }
+    .tutorial-card { padding: 1.5rem; }
+    .tutorial-step-number { left: -15px; width: 40px; height: 40px; font-size: 1.2rem; }
+    .tutorial-card h3, .tutorial-card p, .tutorial-card code, .tutorial-card .pro-tip { padding-left: 20px; margin-left: 10px;}
+    .site-footer .container { flex-direction: column; gap: 10px; }
 }

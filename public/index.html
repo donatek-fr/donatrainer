@@ -44,11 +44,18 @@
     <section id="guide" class="section alt">
         <div class="container">
             <h2>The Complete Amadeus Tutorial: From Zero to Ticketed</h2>
-            <p class="section-subtitle">This guide is your all-in-one resource for learning the Amadeus booking flow. Launch the simulator and enter these commands exactly as shown to go from a blank screen to a fully built PNR. No prior experience needed!</p>
-            <div class="tutorial-layout">
+            <p class="section-subtitle">This guide is your all-in-one resource for learning the Amadeus booking flow. Launch the simulator and follow along step-by-step!</p>
+            <div class="tabs tutorial-tabs">
+                <div class="tab-nav">
+                    <button class="tab-link active" data-tab="step-1">1. Availability</button>
+                    <button class="tab-link" data-tab="step-2">2. Sell Seat</button>
+                    <button class="tab-link" data-tab="step-3">3. Add Name</button>
+                    <button class="tab-link" data-tab="step-4">4. Add Contacts</button>
+                    <button class="tab-link" data-tab="step-5">5. Finalize</button>
+                    <button class="tab-link" data-tab="step-6">6. Save</button>
+                </div>
                 <!-- Step 1 -->
-                <div class="tutorial-card">
-                    <div class="tutorial-step-number">1</div>
+                <div id="step-1" class="tab-content active">
                     <h3>Search for Availability (AN)</h3>
                     <p>Every booking begins with a question: "What's available?" The `AN` (Availability Neutral) command is your key. The format is the command, the date (DDMMM), the 3-letter departure city code, and the 3-letter arrival city code.</p>
                     <p><strong>Your Entry:</strong></p>
@@ -58,8 +65,7 @@
                     </div>
                 </div>
                 <!-- Step 2 -->
-                <div class="tutorial-card">
-                    <div class="tutorial-step-number">2</div>
+                <div id="step-2" class="tab-content">
                     <h3>Sell a Seat (SS)</h3>
                     <p>From the availability list, you must select a flight and "sell" a seat to temporarily hold it for your client. The `SS` command requires the number of passengers, the specific fare class you want, and the line number from the list.</p>
                     <p><strong>Your Entry:</strong></p>
@@ -69,8 +75,7 @@
                     </div>
                 </div>
                 <!-- Step 3 -->
-                <div class="tutorial-card">
-                    <div class="tutorial-step-number">3</div>
+                <div id="step-3" class="tab-content">
                     <h3>Add Passenger Name (NM)</h3>
                     <p>A booking is useless without a name. The `NM` (Name) command is a mandatory element. The format is critical: `NM` followed by the number of passengers, surname, a slash, first name, and title (MR, MRS, MSTR for a child, MISS).</p>
                     <p><strong>Your Entry:</strong></p>
@@ -80,8 +85,7 @@
                     </div>
                 </div>
                 <!-- Step 4 -->
-                <div class="tutorial-card">
-                    <div class="tutorial-step-number">4</div>
+                <div id="step-4" class="tab-content">
                     <h3>Add Contact Information (AP/APE)</h3>
                     <p>Airlines require a way to contact the passenger in case of flight changes. You must add at least one contact element. `AP` is for phone numbers and `APE` is for email.</p>
                     <p><strong>Your Entries:</strong></p>
@@ -92,8 +96,7 @@
                     </div>
                 </div>
                 <!-- Step 5 -->
-                <div class="tutorial-card">
-                    <div class="tutorial-step-number">5</div>
+                <div id="step-5" class="tab-content">
                     <h3>Finalize Mandatory Fields (TKOK/RF)</h3>
                     <p>Before saving, Amadeus requires two final pieces of information: the ticketing arrangement and your signature. `TKOK` confirms a ticket will be issued. `RF` (Received From) is your digital signature.</p>
                     <p><strong>Your Entries:</strong></p>
@@ -104,8 +107,7 @@
                     </div>
                 </div>
                 <!-- Step 6 -->
-                <div class="tutorial-card">
-                    <div class="tutorial-step-number">6</div>
+                <div id="step-6" class="tab-content">
                     <h3>Save the Booking (ER)</h3>
                     <p>With all mandatory elements (Name, Itinerary, Contact, Ticketing, Received From) entered, you can now save the PNR. The `ER` (End & Retrieve) command finalizes the booking and the system will generate a unique Record Locator.</p>
                     <p><strong>Your Entry:</strong></p>
@@ -122,7 +124,7 @@
     <section id="cheatsheet" class="section">
       <div class="container">
         <h2>Command & Control Center</h2>
-        <div class="tabs">
+        <div class="tabs cheatsheet-tabs">
             <div class="tab-nav">
                 <button class="tab-link active" data-tab="tab-1">Core Booking</button>
                 <button class="tab-link" data-tab="tab-2">PNR Servicing</button>
@@ -213,17 +215,30 @@
     }
     type();
 
-    const tabLinks = document.querySelectorAll('.tab-link');
-    const tabContents = document.querySelectorAll('.tab-content');
-    tabLinks.forEach(link => {
-        link.addEventListener('click', () => {
-            const tabId = link.getAttribute('data-tab');
-            tabLinks.forEach(l => l.classList.remove('active'));
-            tabContents.forEach(c => c.classList.remove('active'));
-            link.classList.add('active');
-            document.getElementById(tabId).classList.add('active');
+    // --- Tab Logic ---
+    function setupTabs(tabContainerClass) {
+        const tabContainer = document.querySelector('.' + tabContainerClass);
+        if (!tabContainer) return;
+
+        const tabLinks = tabContainer.querySelectorAll('.tab-link');
+        const tabContents = tabContainer.querySelectorAll('.tab-content');
+
+        tabLinks.forEach(link => {
+            link.addEventListener('click', () => {
+                const tabId = link.getAttribute('data-tab');
+
+                tabLinks.forEach(l => l.classList.remove('active'));
+                tabContents.forEach(c => c.classList.remove('active'));
+
+                link.classList.add('active');
+                tabContainer.querySelector('#' + tabId).classList.add('active');
+            });
         });
-    });
+    }
+
+    setupTabs('tutorial-tabs');
+    setupTabs('cheatsheet-tabs');
+
 
     document.addEventListener("contextmenu", e => e.preventDefault());
     document.addEventListener("copy", e => e.preventDefault());
