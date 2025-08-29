@@ -1,9 +1,9 @@
 /* ============================================================================
-   DonaTrainer — App JS (Masterpiece v8.1 - Complete with Layover Engine)
+   DonaTrainer — App JS (v7.2 - Round Trip Update)
    - Author: Mohammed Abdul Kahar / Donabil SAS
-   - Contains all features: Core, PNR Servicing, Post-Ticketing,
-     Commercial, Queues, Dynamic Engine, Scenarios, and Layovers.
-   - This is the final, complete, and verified version.
+   - NEW: Full support for Round Trip Availability (AN.../R...).
+   - NEW: Support for selling return segments (SS...*...).
+   - This is the definitive, complete, and verified version.
 ============================================================================ */
 
 const AMX = window.AMX || (window.AMX = {});
@@ -13,7 +13,7 @@ AMX.state = {
   office: "STRASBOURG/FR",
   agent: "Donatek",
   world: { airports: [], airlines: [], routes: [] },
-  availability: [],
+  availability: { outbound: [], inbound: [] }, // Changed to object
   pnr: null,
   commandHistory: [],
   historyIndex: -1,
@@ -97,104 +97,73 @@ function randomLocator() {
   return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
 }
 
-// --- DYNAMIC ENGINE (with Connection Logic) ---
-function mockAvailability(date, from, to, connection) {
-    AMX.state.availability = [];
-    let lineNum = 1;
-
-    // 1. Find and add direct flights
-    const directRoutes = AMX.state.world.routes.filter(r => r[0] === from && r[1] === to);
-    directRoutes.forEach(route => {
-        for (let i = 0; i < 2; i++) {
-            const depHour = 8 + i * 4;
-            AMX.state.availability.push({
-                line: lineNum++,
-                segments: [{
-                    date: fmtDDMMM(date), from, to, carrier: route[2],
-                    flight: String(Math.floor(Math.random() * 800) + 100),
-                    dep: `${fmt.pad(depHour)}:00`, arr: `${fmt.pad((depHour + 9) % 24)}:00`,
-                    classes: "J4 Y9 M9 K5"
-                }]
-            });
-        }
-    });
-
-    // 2. Find and add connecting flights if a connection point is specified
-    if (connection) {
-        const leg1Routes = AMX.state.world.routes.filter(r => r[0] === from && r[1] === connection);
-        const leg2Routes = AMX.state.world.routes.filter(r => r[0] === connection && r[1] === to);
-
-        if (leg1Routes.length > 0 && leg2Routes.length > 0) {
-            for (let i = 0; i < 4; i++) {
-                const leg1 = leg1Routes[i % leg1Routes.length];
-                const leg2 = leg2Routes[i % leg2Routes.length];
-                const depHour1 = 6 + i * 2;
-                const arrHour1 = (depHour1 + 4);
-                const depHour2 = (arrHour1 + 2);
-
-                AMX.state.availability.push({
-                    line: lineNum++,
-                    segments: [
-                        {
-                            date: fmtDDMMM(date), from: leg1[0], to: leg1[1], carrier: leg1[2],
-                            flight: String(Math.floor(Math.random() * 800) + 100),
-                            dep: `${fmt.pad(depHour1)}:30`, arr: `${fmt.pad(arrHour1)}:30`,
-                            classes: "J4 Y9 M9 K5"
-                        },
-                        {
-                            date: fmtDDMMM(date), from: leg2[0], to: leg2[1], carrier: leg2[2],
-                            flight: String(Math.floor(Math.random() * 800) + 100),
-                            dep: `${fmt.pad(depHour2)}:30`, arr: `${fmt.pad((depHour2 + 4) % 24)}:30`,
-                            classes: "J4 Y9 M9 K5"
-                        }
-                    ]
-                });
-            }
-        }
+// --- DYNAMIC ENGINE ---
+function mockAvailability(date, from, to) {
+    const validRoutes = AMX.state.world.routes.filter(r => r[0] === from && r[1] === to);
+    if (validRoutes.length === 0) return [];
+    const airlines = validRoutes.map(r => r[2]);
+    const lines = [];
+    for (let i = 0; i < 6; i++) {
+        const airline = airlines[i % airlines.length];
+        const depHour = 7 + i * 2;
+        const depMin = [0, 15, 30, 45][i % 4];
+        const arrHour = (depHour + 9) % 24;
+        lines.push({
+            line: i + 1, date: fmtDDMMM(date), from, to, carrier: airline,
+            flight: String(Math.floor(Math.random() * 800) + 100),
+            dep: `${fmt.pad(depHour)}:${fmt.pad(depMin)}`,
+            arr: `${fmt.pad(arrHour)}:${fmt.pad(depMin)}`,
+            classes: "J4 Y9 M9 K5 B5"
+        });
     }
-    return AMX.state.availability;
+    return lines;
 }
 
 // --- COMMAND IMPLEMENTATIONS ---
 const commands = {
   // Core Booking
   AN: (arg) => {
-    const m = arg.toUpperCase().match(/^(\d{1,2}[A-Z]{3})([A-Z]{3})([A-Z]{3})(?:\/X([A-Z]{3}))?/);
-    if (!m) return writeLine("FORMAT: AN<DDMMM><FROM><TO>[/X<CONNECT>]", "err");
-    const [_, ddmmm, from, to, connection] = m;
+    const m = arg.toUpperCase().match(/^(\d{1,2}[A-Z]{3})([A-Z]{3})([A-Z]{3})(?:\/R(\d{1,2}[A-Z]{3}))?/);
+    if (!m) return writeLine("FORMAT: AN<DDMMM><FROM><TO>[/R<DDMMM>]", "err");
+    const [_, ddmmm, from, to, retDdmmm] = m;
     const dt = parseDDMMM(ddmmm);
     if (!dt) return writeLine("INVALID DATE FORMAT", "err");
     
-    const lines = mockAvailability(dt, from, to, connection);
-    if (lines.length === 0) return writeLine(`NO FLIGHTS FOUND FOR ${from}-${to}`, "err");
-
+    const outLines = mockAvailability(dt, from, to);
+    if (outLines.length === 0) return writeLine(`NO FLIGHTS FOUND FOR ${from}-${to}`, "err");
+    AMX.state.availability.outbound = outLines;
+    
     writeLine(`AVAILABILITY FOR ${ddmmm} ${from}-${to}`, "ok");
-    lines.forEach(l => {
-        if (l.segments.length === 1) {
-            const seg = l.segments[0];
-            writeLine(`${l.line} ${seg.carrier}${seg.flight} ${seg.from}${seg.to} ${seg.dep}-${seg.arr} ${seg.classes}`);
-        } else {
-            const seg1 = l.segments[0];
-            const seg2 = l.segments[1];
-            writeLine(`${l.line} ${seg1.carrier}${seg1.flight} ${seg1.from}${seg1.to} ${seg1.dep}-${seg1.arr}`);
-            writeLine(`   ${seg2.carrier}${seg2.flight} ${seg2.from}${seg2.to} ${seg2.dep}-${seg2.arr} ${seg2.classes}`);
-        }
-    });
+    outLines.forEach(l => writeLine(`${l.line} ${l.carrier}${l.flight} ${l.from}${l.to} ${l.dep}-${l.arr} ${l.classes}`));
+
+    if (retDdmmm) {
+        const retDt = parseDDMMM(retDdmmm);
+        if (!retDt) return writeLine("INVALID RETURN DATE FORMAT", "err");
+        const inLines = mockAvailability(retDt, to, from);
+        AMX.state.availability.inbound = inLines;
+        writeLine(`\nRETURN AVAILABILITY FOR ${retDdmmm} ${to}-${from}`, "ok");
+        inLines.forEach(l => writeLine(`${l.line} ${l.carrier}${l.flight} ${l.from}${l.to} ${l.dep}-${l.arr} ${l.classes}`));
+    }
   },
   SS: (arg) => {
-    const m = arg.toUpperCase().match(/^(\d+)([A-Z])(\d+)$/);
-    if (!m) return writeLine("FORMAT: SS<PAX><CLASS><LINE>", "err");
-    const [_, pax, rbd, lineNo] = m;
-    const sel = AMX.state.availability.find(l => l.line == lineNo);
-    if (!sel) return writeLine("NO SUCH LINE", "err");
+    const parts = arg.toUpperCase().split('*');
     const pnr = ensurePNR();
-    for (let i = 0; i < pax; i++) {
-        sel.segments.forEach(seg => {
-            pnr.segments.push({ ...seg, cabin: rbd, status: "HK", seats: [] });
-        });
-    }
-    addHistory(pnr, `SOLD ${pax} IN ${rbd} FROM LINE ${lineNo}`);
-    writeLine(`SOLD ${pax} SEATS`, "ok");
+    
+    parts.forEach((part, index) => {
+        const m = part.match(/^(\d+)([A-Z])(\d+)$/);
+        if (!m) return writeLine("FORMAT: SS<PAX><CL><LN> OR SS...*SS...", "err");
+        const [_, pax, rbd, lineNo] = m;
+        
+        const availabilityList = (index === 0) ? AMX.state.availability.outbound : AMX.state.availability.inbound;
+        const sel = availabilityList.find(l => l.line == lineNo);
+        if (!sel) return writeLine(`LINE ${lineNo} NOT FOUND IN ${index === 0 ? 'OUTBOUND' : 'INBOUND'} DISPLAY`, "err");
+
+        for (let i = 0; i < pax; i++) {
+            pnr.segments.push({ ...sel, cabin: rbd, status: "HK", seats: [] });
+        }
+        addHistory(pnr, `SOLD ${pax} IN ${rbd} FROM LINE ${lineNo}`);
+        writeLine(`SOLD ${pax} SEATS FROM ${index === 0 ? 'OUTBOUND' : 'INBOUND'}`, "ok");
+    });
   },
   NM: (arg) => {
     const pnr = ensurePNR();
@@ -258,6 +227,13 @@ const commands = {
   },
 
   // Pricing & Ticketing
+  FQD: (arg) => {
+    const m = arg.toUpperCase().match(/^([A-Z]{3})([A-Z]{3})/);
+    if (!m) return writeLine("FORMAT: FQD<FROM><TO>", "err");
+    writeLine(`FARE DISPLAY FOR ${m[1]}-${m[2]}`, "ok");
+    writeLine("1. LH K4SAVER EUR 540.00", "hint");
+    writeLine("2. BA W1FLEX  EUR 920.00", "hint");
+  },
   FXP: () => {
     const pnr = ensurePNR();
     if (!pnr.segments.length) return writeLine("NO SEGMENTS TO PRICE", "err");
@@ -286,7 +262,7 @@ const commands = {
     const html = renderItineraryHTML(pnr);
     writeHTML(html);
     const printWindow = window.open('', '_blank');
-    printWindow.document.write(`<!doctype html><html><head><title>Itinerary</title><link rel="stylesheet" href="assets/css/base.css"><link rel="stylesheet" href="assets/css/app.css"><style>body{background:#fff!important;color:#000!important;}</style></head><body>${html}</body></html>`);
+    printWindow.document.write(`<!doctype html><html><head><title>Itinerary</title><link rel="stylesheet" href="../assets/css/base.css"><link rel="stylesheet" href="../assets/css/app.css"><style>body{background:#fff!important;color:#000!important;}</style></head><body>${html}</body></html>`);
     printWindow.document.close();
     printWindow.focus();
     setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
@@ -330,7 +306,7 @@ const commands = {
         writeLine(AMX.state.training.scenario.steps[0].instruction, "scenario");
     }
   },
-  HE: () => { writeLine("COMMANDS: AN, SS, NM, ER, RT, IR, RRN, FQN, SM, ST, HE, CS...", "hint"); },
+  HE: () => { writeLine("COMMANDS: AN, SS, NM, ER, RT, IR, RRN, FQD, FQN, SM, ST, HE, CS...", "hint"); },
   CS: () => { const out = $("output"); if (out) out.innerHTML = ""; },
 };
 
@@ -432,7 +408,7 @@ function startClock() {
 
 async function loadInitialData() {
     try {
-        const res = await fetch("assets/data/worlddata.json");
+        const res = await fetch("../assets/data/worlddata.json"); // CORRECTED PATH
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         AMX.state.world = await res.json();
     } catch (err) {
