@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>The DonaTrainer Handbook — Complete Amadeus Command Guide</title>
+  <link rel="icon" href="../assets/img/logo.svg"/>
+  <meta name="description" content="The complete DonaTrainer handbook: every Amadeus cryptic command the simulator supports, from availability and PNR creation through pricing, ticketing, queues and profiles." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/base.css" />
+  <link rel="stylesheet" href="../assets/css/home.css" />
+  <link rel="stylesheet" href="../assets/css/guide.css" />
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="container">
+      <a href="../index.html" class="brand">
+        <img src="../assets/img/logo.svg" alt="DonaTrainer Logo"/>
+      </a>
+      <nav class="nav-actions">
+        <a href="../index.html" class="nav-link">Home</a>
+        <a href="https://donabil.com" target="_blank" rel="noopener" class="nav-link">Donabil</a>
+        <a class="btn primary" href="../app/index.html">Launch Simulator</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="guide-shell">
+      <nav class="guide-nav" id="guideNav">
+        <div class="gn-head">HANDBOOK — GATE DIRECTORY</div>
+        <a href="#welcome"><span class="gn-num">01</span> Welcome</a>
+        <a href="#help"><span class="gn-num">02</span> The Help System</a>
+        <a href="#decode"><span class="gn-num">03</span> Decode &amp; Encode</a>
+        <a href="#availability"><span class="gn-num">04</span> Availability</a>
+        <a href="#pnr"><span class="gn-num">05</span> Building a PNR</a>
+        <a href="#elements"><span class="gn-num">06</span> Optional Elements</a>
+        <a href="#servicing"><span class="gn-num">07</span> Servicing a PNR</a>
+        <a href="#pricing"><span class="gn-num">08</span> Pricing</a>
+        <a href="#payment"><span class="gn-num">09</span> Payment &amp; Ticketing</a>
+        <a href="#sales"><span class="gn-num">10</span> Sales Reports</a>
+        <a href="#queues"><span class="gn-num">11</span> Queues</a>
+        <a href="#profiles"><span class="gn-num">12</span> Customer Profiles</a>
+        <a href="#docs"><span class="gn-num">13</span> Travel Documents</a>
+        <a href="#reference"><span class="gn-num">14</span> Full Command Index</a>
+        <a href="#credits"><span class="gn-num">15</span> Credits</a>
+      </nav>
+
+      <div class="guide-content">
+        <h1>The DonaTrainer Handbook</h1>
+        <p class="lede">Everything the simulator understands, organized the way you'll actually use it. Keep this open in a second tab while you work the terminal.</p>
+
+        <section class="chapter" id="welcome">
+          <span class="ch-eyebrow">CHAPTER 01</span>
+          <h2>Welcome aboard</h2>
+          <p>Amadeus is operated entirely through short, dense commands — "cryptic entries." There's no menu to hunt through; you type an instruction, the system replies, and you build on that reply. It feels unfriendly for about a day and then it feels like the only sane way to work.</p>
+          <p class="muted">Each chapter below pairs a real entry with what it does and what the simulator will say back. Everything is safe to try — DonaTrainer keeps its data in your browser only, and nothing here ever touches a real airline.</p>
+          <div class="callout"><strong>Tip:</strong> the terminal keeps command history — press ↑ / ↓ in the input to reuse a previous entry.</div>
+        </section>
+
+        <section class="chapter" id="help">
+          <span class="ch-eyebrow">CHAPTER 02</span>
+          <h2>The help system</h2>
+          <p>Amadeus is famous for burying its own documentation inside itself. DonaTrainer does the same thing on purpose — type <code>HE</code> for a list of topics, or <code>HE</code> followed by a topic name for a one-line refresher without leaving the terminal.</p>
+          <div class="cmd-block">
+            <span class="syntax">HE &lt;TOPIC&gt;</span>
+            <div class="desc">e.g. <code>HE AN</code>, <code>HE PRICING</code>, <code>HE QUEUES</code>. Bare <code>HE</code> lists every topic the terminal knows.</div>
+          </div>
+          <p class="muted">Think of it as a quick-reference card that lives inside the tool instead of a separate browser tab — this handbook is the long version.</p>
+        </section>
+
+        <section class="chapter" id="decode">
+          <span class="ch-eyebrow">CHAPTER 03</span>
+          <h2>Decode &amp; encode</h2>
+          <p>Everything in a GDS is a code: airports, cities, airlines, countries. Before you can read an availability display fluently, you need to be able to go from code → name and back.</p>
+          <div class="cmd-grid">
+            <div class="cmd-block"><span class="syntax">DAN &lt;text&gt;</span><div class="desc">City or airport name → code. <code>DAN KUWAIT</code> → KWI.</div></div>
+            <div class="cmd-block"><span class="syntax">DAC &lt;code&gt;</span><div class="desc">Airport or country code → name. <code>DAC KWI</code> → Kuwait City.</div></div>
+            <div class="cmd-block"><span class="syntax">DC &lt;code&gt;</span><div class="desc">Country code ↔ name, either direction. <code>DC QA</code> → Qatar.</div></div>
+            <div class="cmd-block"><span class="syntax">DNA &lt;code&gt;</span><div class="desc">Airline code → name and numeric code. <code>DNA QR</code> → Qatar Airways / QR / 157.</div></div>
+          </div>
+        </section>
+
+        <section class="chapter" id="availability">
+          <span class="ch-eyebrow">CHAPTER 04</span>
+          <h2>Availability — AN</h2>
+          <p>Every booking starts with a question: what's flying? <code>AN</code> (Availability, Neutral) answers it — date, origin, destination, and it hands back a numbered list of flights you can sell straight from.</p>
+          <div class="cmd-block">
+            <span class="syntax">AN&lt;DDMMM&gt;&lt;FROM&gt;&lt;TO&gt;</span>
+            <div class="desc"><code>AN15DECDOHLHR</code> — availability from Doha to London Heathrow on 15 December.</div>
+          </div>
+          <p>Durations and arrival times are calculated from real airport coordinates — a Doha–London flight really does take about seven hours here, and an overnight sector shows <code>+1</code> on the arrival time when it lands the next day.</p>
+          <ul class="tick-list">
+            <li><strong>/R&lt;DDMMM&gt;</strong> — add a return date in the same entry: <code>AN15DECDOHLHR/R22DEC</code>.</li>
+            <li><strong>/A&lt;CARRIER&gt;</strong> — show one airline only: <code>AN15DECDOHLHR/AQR</code>.</li>
+            <li><strong>/D</strong> — nonstop flights only, no connections.</li>
+            <li><strong>/C&lt;CLASS&gt;</strong> — focus the display on one booking class.</li>
+            <li><strong>/X&lt;CITY&gt;</strong> — exclude a connection city, e.g. <code>/XMCT</code> to avoid routing through Muscat.</li>
+          </ul>
+          <p class="muted">If there's no nonstop service between two cities, the terminal will offer a one-stop routing through a common hub automatically — exactly the way a real display falls back to connections.</p>
+        </section>
+
+        <section class="chapter" id="pnr">
+          <span class="ch-eyebrow">CHAPTER 05</span>
+          <h2>Building a PNR</h2>
+          <p>A Passenger Name Record needs five mandatory elements before it can be saved. Miss one and <code>ER</code> will refuse to save it — that's deliberate, it's the same rule a real system enforces.</p>
+          <div class="cmd-grid">
+            <div class="cmd-block"><span class="syntax">SS&lt;PAX&gt;&lt;CLASS&gt;&lt;LINE&gt;</span><div class="desc">Sell a segment. <code>SS1Y1</code> — sell 1 seat in Y from line 1 of the last display.</div></div>
+            <div class="cmd-block"><span class="syntax">NM1&lt;SURNAME&gt;/&lt;FIRST&gt; &lt;TITLE&gt;</span><div class="desc"><code>NM1SMITH/JOHN MR</code> — the name element.</div></div>
+            <div class="cmd-block"><span class="syntax">AP / APE</span><div class="desc">Contact: <code>AP 33-123456789</code> for a phone, <code>APE name@mail.com</code> for email. <code>APH</code>/<code>APM</code> record a home or mobile number separately.</div></div>
+            <div class="cmd-block"><span class="syntax">TKOK</span><div class="desc">Ticketing arrangement — confirms a ticket will be issued.</div></div>
+            <div class="cmd-block"><span class="syntax">RF &lt;NAME&gt;</span><div class="desc">Received From — your signature on the booking.</div></div>
+            <div class="cmd-block"><span class="syntax">ER</span><div class="desc">End &amp; Retrieve — saves the PNR and hands back a record locator.</div></div>
+          </div>
+          <p><strong>Children and infants</strong> ride on the same <code>NM</code> entry, with a qualifier in parentheses:</p>
+          <div class="cmd-grid">
+            <div class="cmd-block"><span class="syntax">NM1SMITH/TIM MSTR(CHD/16JUN17)</span><div class="desc">A child, with date of birth.</div></div>
+            <div class="cmd-block"><span class="syntax">NM1ALI/AYA MRS(INF/NINA/06AUG22)</span><div class="desc">An infant travelling on the adult's lap — infant's own first name and date of birth.</div></div>
+          </div>
+          <p class="muted">If your selected class shows <code>0</code> seats in the availability display, <code>SS</code> won't refuse the sale — it waitlists it (status <code>HL</code> instead of <code>HK</code>) exactly like the real system would.</p>
+        </section>
+
+        <section class="chapter" id="elements">
+          <span class="ch-eyebrow">CHAPTER 06</span>
+          <h2>Optional PNR elements</h2>
+          <p>Beyond the five mandatory pieces, a PNR can carry free-text remarks, special service requests, frequent flyer numbers and seat assignments.</p>
+          <div class="cmd-grid">
+            <div class="cmd-block"><span class="syntax">RM &lt;text&gt;</span><div class="desc">A general remark. Prefix with <code>/TAG</code> to categorize it, e.g. <code>RM /VIP CLIENT PREFERS AISLE</code>.</div></div>
+            <div class="cmd-block"><span class="syntax">OS &lt;text&gt;</span><div class="desc">Other Service Information — informational only, doesn't need an airline reply.</div></div>
+            <div class="cmd-block"><span class="syntax">FFN &lt;CARRIER-NUMBER&gt;</span><div class="desc">Attach a frequent flyer number, e.g. <code>FFN QR-1234567</code>.</div></div>
+            <div class="cmd-block"><span class="syntax">SR &lt;TYPE&gt; &lt;text&gt;</span><div class="desc">A generic special service request — meals, wheelchair, passport data: <code>SR VGML VEGETARIAN MEAL</code>, <code>SR DOCS P QA 12345 14JAN30</code>.</div></div>
+          </div>
+          <p>Seat maps and assignments work the same way you'd expect on a real segment display:</p>
+          <div class="cmd-grid">
+            <div class="cmd-block"><span class="syntax">SM &lt;SEGMENT#&gt;</span><div class="desc">Display a seat map for that segment.</div></div>
+            <div class="cmd-block"><span class="syntax">ST/&lt;SEAT&gt;/P&lt;PAX#&gt;</span><div class="desc"><code>ST/24A/P1</code> — assign 24A to passenger 1 across every segment.</div></div>
+          </div>
+        </section>
+
+        <section class="chapter" id="servicing">
+          <span class="ch-eyebrow">CHAPTER 07</span>
+          <h2>Retrieving &amp; servicing a PNR</h2>
+          <p>Once a booking is saved you'll spend most of your time retrieving and adjusting it, not creating new ones from scratch.</p>
+          <div class="cmd-grid">
+            <div class="cmd-block"><span class="syntax">RT&lt;LOCATOR&gt;</span><div class="desc">Retrieve by record locator. Bare <code>RT</code> redisplays whatever's active.</div></div>
+            <div class="cmd-block"><span class="syntax">RT/&lt;SURNAME&gt;</span><div class="desc"><code>RT/SMITH</code> — search by surname. A partial surname (<code>RT/S</code>) returns a numbered list; pick one with <code>RT&lt;n&gt;</code>.</div></div>
+            <div class="cmd-block"><span class="syntax">IR / IG</span><div class="desc"><code>IR</code> ignores unsaved changes and re-retrieves the last saved copy. <code>IG</code> just clears the screen.</div></div>
+            <div class="cmd-block"><span class="syntax">RH</span><div class="desc">Full history of every entry made against the active PNR.</div></div>
+            <div class="cmd-block"><span class="syntax">XE&lt;n&gt; / XI</span><div class="desc"><code>XE2</code> cancels element number 2 from the itinerary display; <code>XI</code> clears every flight segment at once.</div></div>
+            <div class="cmd-block"><span class="syntax">SBC&lt;n&gt; / SB&lt;DDMMM&gt;&lt;n&gt;</span><div class="desc">Rebook segment <em>n</em> into a new class, or onto a new date.</div></div>
+            <div class="cmd-block"><span class="syntax">NU&lt;OLD#&gt;/&lt;NEW#&gt;&lt;SURNAME&gt;/&lt;FIRST&gt;</span><div class="desc">Correct a passenger's name after the fact.</div></div>
+            <div class="cmd-block"><span class="syntax">SP &lt;PAX#&gt;[,&lt;PAX#&gt;...]</span><div class="desc">Split named passengers into a brand-new, unsaved PNR that keeps the same itinerary — save it with <code>ER</code>.</div></div>
+            <div class="cmd-block"><span class="syntax">RRN</span><div class="desc">Copy the active PNR's itinerary into a fresh booking, ready for new names.</div></div>
+          </div>
+          <div class="callout"><strong>Heads up:</strong> retrieving a saved PNR occasionally triggers a random schedule change (see Chapter 11) — that's the simulator's irregular-operations engine, not a bug.</div>
+        </section>
+
+        <section class="chapter" id="pricing">
+          <span class="ch-eyebrow">CHAPTER 08</span>
+          <h2>Pricing</h2>
+          <p>Four entries price an itinerary; the difference is whether the result gets stored as a Transitional Stored Ticket (TST) and whether it hunts for the lowest available fare.</p>
+          <div class="ref-wrap">
+            <table class="ref-table">
+              <thead><tr><th>Entry</th><th>Stores a TST?</th><th>Lowest fare?</th></tr></thead>
+              <tbody>
+                <tr><td>FXX</td><td>No</td><td>No</td></tr>
+                <tr><td>FXR</td><td>No</td><td>Yes</td></tr>
+                <tr><td>FXP</td><td>Yes</td><td>No</td></tr>
+                <tr><td>FXB</td><td>Yes</td><td>Yes</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>All four accept a passenger scope: <code>/P1</code> (passenger 1 only), <code>/PAX</code> (adults and children), <code>/INF</code> (infant only).</p>
+          <div class="cmd-grid">
+            <div class="cmd-block"><span class="syntax">FQD&lt;FROM&gt;&lt;TO&gt;[/A&lt;CARRIER&gt;][/D&lt;DDMMM&gt;]</span><div class="desc">Fare display for a city pair, no PNR required.</div></div>
+            <div class="cmd-block"><span class="syntax">FQP&lt;FROM&gt;/A&lt;CARRIER&gt;/D&lt;DDMMM&gt;&lt;TO&gt;</span><div class="desc">Informative pricing for a specific itinerary without booking it. Chain a second leg with <code>---</code>.</div></div>
+            <div class="cmd-block"><span class="syntax">FXD&lt;FROM&gt;&lt;TO&gt;</span><div class="desc">Master Pricer — a ranked list of fare recommendations for a route.</div></div>
+            <div class="cmd-block"><span class="syntax">FQN</span><div class="desc">Fare rules for whatever's currently priced.</div></div>
+          </div>
+        </section>
+
+        <section class="chapter" id="payment">
+          <span class="ch-eyebrow">CHAPTER 09</span>
+          <h2>Payment &amp; ticketing</h2>
+          <p>Three fields have to be on file before <code>TTP</code> will issue anything: a TST (Chapter 08), a validating carrier, and a form of payment.</p>
+          <div class="cmd-grid">
+            <div class="cmd-block"><span class="syntax">FV &lt;CARRIER&gt;</span><div class="desc">Validating carrier, e.g. <code>FV QR</code>.</div></div>
+            <div class="cmd-block"><span class="syntax">FP CASH / FP INV / FP CC VI 4444.../1228</span><div class="desc">Form of payment — cash, invoice, or a card with expiry.</div></div>
+            <div class="cmd-block"><span class="syntax">FM &lt;AMOUNT&gt;</span><div class="desc">Agency commission on file.</div></div>
+            <div class="cmd-block"><span class="syntax">FCM-A&lt;AMOUNT&gt; / FCM-C&lt;PERCENT&gt;</span><div class="desc">A flat or percentage agency markup, added to the displayed total.</div></div>
+            <div class="cmd-block"><span class="syntax">FXA / FXK &lt;description&gt; &lt;price&gt;</span><div class="desc">Record an ancillary — extra bag, seat upgrade — added straight into the total.</div></div>
+            <div class="cmd-block"><span class="syntax">TTP</span><div class="desc">Issues the ticket(s). <code>TTP/P1</code>, <code>TTP/PAX</code>, <code>TTP/INF</code> scope it to specific passengers.</div></div>
+          </div>
+          <p>Once issued, tickets carry a realistic number — the validating carrier's own 3-digit numeric code plus a serial, exactly the format printed on a real e-ticket.</p>
+          <div class="cmd-grid">
+            <div class="cmd-block"><span class="syntax">TWD / TWD/L&lt;n&gt; / TWD/TKT&lt;number&gt;</span><div class="desc">Display an e-ticket by line or by number. <code>TWD/TAX</code> shows the tax breakdown, <code>TWH</code> its history.</div></div>
+            <div class="cmd-block"><span class="syntax">TRDC/L&lt;n&gt; / TRDC/TK-&lt;number&gt;</span><div class="desc">Void a ticket issued today.</div></div>
+          </div>
+        </section>
+
+        <section class="chapter" id="sales">
+          <span class="ch-eyebrow">CHAPTER 10</span>
+          <h2>Sales reports</h2>
+          <p><code>TJQ</code> pulls a list of every ticket issued, across every PNR you've saved in this browser.</p>
+          <div class="cmd-grid">
+            <div class="cmd-block"><span class="syntax">TJQ</span><div class="desc">Today's issued tickets.</div></div>
+            <div class="cmd-block"><span class="syntax">TJQ/D-&lt;DDMMM&gt;&lt;DDMMM&gt;</span><div class="desc">A date range.</div></div>
+            <div class="cmd-block"><span class="syntax">TJQ/SOF/QVP-&lt;CARRIER&gt;</span><div class="desc">Filter to one validating carrier.</div></div>
+            <div class="cmd-block"><span class="syntax">TJQ/SOF/QTC-RFND</span><div class="desc">Voided/refunded tickets only.</div></div>
+          </div>
+        </section>
+
+        <section class="chapter" id="queues">
+          <span class="ch-eyebrow">CHAPTER 11</span>
+          <h2>Queues</h2>
+          <p>A queue is a to-do list PNRs land on automatically — the classic example is queue 5, "Schedule Change." DonaTrainer actually generates that traffic: retrieving a saved, ticketed PNR carries a real chance of triggering a schedule change, which lands it on queue 5 for you to work.</p>
+          <div class="cmd-grid">
+            <div class="cmd-block"><span class="syntax">QE&lt;n&gt;</span><div class="desc">Place the active PNR on queue <em>n</em>.</div></div>
+            <div class="cmd-block"><span class="syntax">QT&lt;n&gt;</span><div class="desc">Open queue <em>n</em> and display the first PNR waiting on it.</div></div>
+            <div class="cmd-block"><span class="syntax">QN</span><div class="desc">Action the displayed PNR — retrieves it and removes it from the queue.</div></div>
+            <div class="cmd-block"><span class="syntax">QD</span><div class="desc">Delay the displayed PNR to the bottom of the queue.</div></div>
+            <div class="cmd-block"><span class="syntax">QI</span><div class="desc">Exit the queue.</div></div>
+            <div class="cmd-block"><span class="syntax">QTQ</span><div class="desc">Total counts across every queue.</div></div>
+          </div>
+        </section>
+
+        <section class="chapter" id="profiles">
+          <span class="ch-eyebrow">CHAPTER 12</span>
+          <h2>Customer profiles</h2>
+          <p>A profile stores a traveler's name and contact details so they don't have to be retyped on every booking.</p>
+          <div class="cmd-grid">
+            <div class="cmd-block"><span class="syntax">PM / PME</span><div class="desc">Enter and exit profile mode.</div></div>
+            <div class="cmd-block"><span class="syntax">PC/-&lt;PAX#&gt;</span><div class="desc">Draft a profile from a passenger already in the active PNR.</div></div>
+            <div class="cmd-block"><span class="syntax">PIN/&lt;NAME&gt; / PER</span><div class="desc">Name the draft, then save it.</div></div>
+            <div class="cmd-block"><span class="syntax">PDI/&lt;INDEX&gt; / PDN/-&lt;SURNAME&gt;</span><div class="desc">Retrieve a saved profile by index or surname.</div></div>
+            <div class="cmd-block"><span class="syntax">PD / PT</span><div class="desc"><code>PD</code> redisplays the loaded profile; <code>PT</code> transfers it into the active PNR.</div></div>
+          </div>
+        </section>
+
+        <section class="chapter" id="docs">
+          <span class="ch-eyebrow">CHAPTER 13</span>
+          <h2>Travel documents</h2>
+          <p>The <code>IEP</code> family simulates emailing an itinerary — nothing actually leaves your browser, which is exactly what you want in a training sandbox.</p>
+          <div class="cmd-grid">
+            <div class="cmd-block"><span class="syntax">IEP-EML-&lt;address&gt;</span><div class="desc">Email the itinerary once.</div></div>
+            <div class="cmd-block"><span class="syntax">IEPJ-EML-&lt;address&gt;</span><div class="desc">Email it for every passenger on the PNR.</div></div>
+            <div class="cmd-block"><span class="syntax">IEP-EMLA</span><div class="desc">Send to whatever email address is already stored in the PNR (<code>APE</code>).</div></div>
+          </div>
+        </section>
+
+        <section class="chapter" id="reference">
+          <span class="ch-eyebrow">CHAPTER 14</span>
+          <h2>Full command index</h2>
+          <p class="muted">Every entry the terminal recognizes, alphabetically. When in doubt, this is the page to search.</p>
+          <div class="ref-wrap">
+            <table class="ref-table">
+              <thead><tr><th>Command</th><th>What it does</th></tr></thead>
+              <tbody>
+                <tr><td>AN</td><td>Availability display</td></tr>
+                <tr><td>AP / APH / APM / APE</td><td>Phone / home / mobile / email contact</td></tr>
+                <tr><td>CS</td><td>Clear the screen</td></tr>
+                <tr><td>DAN / DAC / DC / DNA</td><td>Decode &amp; encode city, airport, country and airline codes</td></tr>
+                <tr><td>ER</td><td>Save (End &amp; Retrieve) the active PNR</td></tr>
+                <tr><td>FCM</td><td>Agency markup</td></tr>
+                <tr><td>FFN</td><td>Frequent flyer number</td></tr>
+                <tr><td>FM</td><td>Commission</td></tr>
+                <tr><td>FP</td><td>Form of payment</td></tr>
+                <tr><td>FQD / FQP / FQN</td><td>Fare display / informative pricing / fare rules</td></tr>
+                <tr><td>FV</td><td>Validating carrier</td></tr>
+                <tr><td>FXA / FXK</td><td>Ancillary services</td></tr>
+                <tr><td>FXD</td><td>Master Pricer recommendations</td></tr>
+                <tr><td>FXX / FXR / FXP / FXB</td><td>Price (no store / lowest / store / lowest+store)</td></tr>
+                <tr><td>HE</td><td>Help, with an optional topic</td></tr>
+                <tr><td>IEP / IEPJ</td><td>Email the itinerary</td></tr>
+                <tr><td>IR / IG</td><td>Ignore &amp; re-retrieve / ignore</td></tr>
+                <tr><td>ITR/P</td><td>Print the itinerary</td></tr>
+                <tr><td>NM</td><td>Passenger name (+ child/infant)</td></tr>
+                <tr><td>NU</td><td>Update a passenger's name</td></tr>
+                <tr><td>OS</td><td>Other service information</td></tr>
+                <tr><td>PM / PME / PC / PIN / PER / PI / PDI / PDN / PD / PT</td><td>Customer profile family</td></tr>
+                <tr><td>QE / QT / QTQ / QN / QD / QI</td><td>Queue placement, browsing, and totals</td></tr>
+                <tr><td>RF</td><td>Received From</td></tr>
+                <tr><td>RH</td><td>PNR history</td></tr>
+                <tr><td>RM</td><td>Remark</td></tr>
+                <tr><td>RRN</td><td>Copy PNR into a new booking</td></tr>
+                <tr><td>RT</td><td>Retrieve (by locator, surname, or selection)</td></tr>
+                <tr><td>SB</td><td>Rebook a segment's class or date</td></tr>
+                <tr><td>SM / ST</td><td>Seat map / seat assignment</td></tr>
+                <tr><td>SP</td><td>Split passengers into a new PNR</td></tr>
+                <tr><td>SR</td><td>Special service request</td></tr>
+                <tr><td>SS</td><td>Sell a segment</td></tr>
+                <tr><td>TJQ</td><td>Sales report</td></tr>
+                <tr><td>TKOK</td><td>Ticketing arrangement</td></tr>
+                <tr><td>TRAIN</td><td>Start guided scenario training</td></tr>
+                <tr><td>TRDC</td><td>Void a ticket</td></tr>
+                <tr><td>TTP</td><td>Issue tickets</td></tr>
+                <tr><td>TWD / TWH</td><td>Display a ticket / its history</td></tr>
+                <tr><td>XE / XI</td><td>Cancel one element / cancel the itinerary</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="chapter" id="credits">
+          <span class="ch-eyebrow">CHAPTER 15</span>
+          <h2>Credits</h2>
+          <p>DonaTrainer is built and maintained by Donabil SAS, free for the travel industry, forever.</p>
+          <div class="bp-grid" style="margin-top:20px;">
+            <div class="boarding-pass">
+              <div class="bp-main">
+                <span class="bp-eyebrow">Boarding Pass · Leadership</span>
+                <h3 class="bp-name">Mohammed Abdul Kahar</h3>
+                <div class="bp-row"><span>Role</span><strong>President, Donabil SAS</strong></div>
+                <div class="bp-row"><span>Status</span><strong>Confirmed</strong></div>
+              </div>
+              <div class="bp-stub">
+                <div class="bp-barcode"></div>
+                <a class="bp-linkedin" href="https://www.linkedin.com/in/ma-kahar/" target="_blank" rel="noopener">Connect ↗</a>
+              </div>
+            </div>
+            <div class="boarding-pass">
+              <div class="bp-main">
+                <span class="bp-eyebrow">Boarding Pass · Leadership</span>
+                <h3 class="bp-name">Muhammad Ali</h3>
+                <div class="bp-row"><span>Role</span><strong>General Director, Donabil</strong></div>
+                <div class="bp-row"><span>Status</span><strong>Confirmed</strong></div>
+              </div>
+              <div class="bp-stub">
+                <div class="bp-barcode"></div>
+                <a class="bp-linkedin" href="https://www.linkedin.com/in/muhammad-ali-84280a33a/" target="_blank" rel="noopener">Connect ↗</a>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>© <span id="year"></span> DonaTrainer (Donatek / Donabil SAS). Educational use only.</p>
+      <p class="footer-link"><a href="../app/index.html">Launch Simulator</a></p>
+      <p class="footer-link"><a href="https://donabil.com" target="_blank" rel="noopener">donabil.com</a></p>
+    </div>
+  </footer>
+
+  <button id="scrollTopBtn" title="Go to top">↑</button>
+
+  <script>
+    document.getElementById("year").textContent = new Date().getFullYear();
+
+    // Scrollspy: highlight the active sidebar link
+    const links = Array.from(document.querySelectorAll("#guideNav a"));
+    const sections = links.map(l => document.querySelector(l.getAttribute("href")));
+    const spy = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const idx = sections.indexOf(entry.target);
+        if (idx === -1) return;
+        if (entry.isIntersecting) {
+          links.forEach(l => l.classList.remove("active"));
+          links[idx].classList.add("active");
+        }
+      });
+    }, { rootMargin: "-20% 0px -70% 0px" });
+    sections.forEach(s => s && spy.observe(s));
+
+    const scrollTopBtn = document.getElementById("scrollTopBtn");
+    window.onscroll = function() {
+      scrollTopBtn.style.display = (document.body.scrollTop > 200 || document.documentElement.scrollTop > 200) ? "block" : "none";
+    };
+    scrollTopBtn.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
+  </script>
+
+</body>
+</html>

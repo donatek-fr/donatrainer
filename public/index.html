@@ -7,10 +7,13 @@
   <link rel="icon" href="assets/img/logo.svg"/>
   <meta name="description" content="DonaTrainer is a free, open-source, browser-based Amadeus GDS simulator from Donabil. Practice the complete cryptic workflow, from booking to ticketing and post-ticketing changes. Free forever." />
   <meta name="keywords" content="Amadeus simulator, GDS training, Donabil, free GDS training, travel technology, airline reservation training, M.A. Kahar, Donatek, PNR, ticketing" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/base.css" />
   <link rel="stylesheet" href="assets/css/home.css" />
 </head>
-<body class="no-select">
+<body>
 
   <!-- Header -->
   <header class="site-header">
@@ -19,244 +22,216 @@
         <img src="assets/img/logo.svg" alt="DonaTrainer Logo"/>
       </a>
       <nav class="nav-actions">
-        <a href="app/index.html" class="nav-link">Launch Simulator</a>
+        <a href="guide/index.html" class="nav-link">Handbook</a>
         <a href="https://donabil.com" target="_blank" rel="noopener" class="nav-link">Donabil</a>
         <a href="https://donatek.fr" target="_blank" rel="noopener" class="nav-link">Donatek</a>
-        <a class="btn primary" href="https://checkout.revolut.com/pay/454a3ea2-98ae-4c22-96a3-b9cd63a133e9" target="_blank" rel="noopener">❤️ Support Project</a>
+        <a class="btn primary" href="app/index.html">Launch Simulator</a>
       </nav>
     </div>
   </header>
 
   <main>
-    <!-- Hero Section -->
+    <!-- Hero -->
     <section class="hero">
       <div class="container">
-        <h1>Forge Your Skills. Command the Terminal.</h1>
-        <p class="tagline" id="typing-effect"></p>
-        <div class="hero-actions">
+        <div class="hero-copy">
+          <span class="eyebrow">Donabil SAS presents</span>
+          <h1>Learn Amadeus the way agents actually work: <em>on the keyboard.</em></h1>
+          <p class="lede">DonaTrainer is a free, browser-based Amadeus cryptic terminal. No fake quizzes, no slideshows — you type the real commands, in a sandbox that talks back like the real system does.</p>
+          <div class="hero-actions">
             <a href="app/index.html" class="btn xl primary">Launch Simulator</a>
-            <a href="#cheatsheet" class="btn xl secondary">View Cheatsheet</a>
+            <a href="guide/index.html" class="btn xl secondary">Read the Handbook</a>
+          </div>
+        </div>
+        <div class="hero-terminal" aria-hidden="true">
+          <div class="ht-bar">
+            <span class="ht-dot"></span><span class="ht-dot"></span><span class="ht-dot"></span>
+            <span class="ht-title">DONATRAINER — CRYPTIC TERMINAL</span>
+          </div>
+          <div class="ht-body" id="heroTerminal"></div>
         </div>
       </div>
     </section>
 
-    <!-- Tutorial Section -->
-    <section id="guide" class="section alt">
-        <div class="container">
-            <h2>The Complete Amadeus Tutorial: From Zero to Ticketed</h2>
-            <p class="section-subtitle">This guide is your all-in-one resource for learning the Amadeus booking flow. Launch the simulator and follow along step-by-step!</p>
-            <div class="tabs tutorial-tabs">
-                <div class="tab-nav">
-                    <button class="tab-link active" data-tab="step-1">1. Availability</button>
-                    <button class="tab-link" data-tab="step-2">2. Sell Seat</button>
-                    <button class="tab-link" data-tab="step-3">3. Add Name</button>
-                    <button class="tab-link" data-tab="step-4">4. Add Contacts</button>
-                    <button class="tab-link" data-tab="step-5">5. Finalize</button>
-                    <button class="tab-link" data-tab="step-6">6. Save</button>
-                </div>
-                <!-- Step 1 -->
-                <div id="step-1" class="tab-content active">
-                    <h3>Search for Availability (AN)</h3>
-                    <p>Every booking begins with a question: "What's available?" The `AN` (Availability Neutral) command is your key. The format is the command, the date (DDMMM), the 3-letter departure city code, and the 3-letter arrival city code.</p>
-                    <p><strong>Your Entry:</strong></p>
-                    <code>AN15DECFRAJFK</code>
-                    <div class="pro-tip">
-                        <strong>Explanation:</strong> You are asking the system for all available flights on **15 December** from **Frankfurt (FRA)** to **New York (JFK)**. The simulator will return a list of mock flights, each with a line number, airline, flight number, times, and available fare classes (like J, Y, M, K).
-                    </div>
-                </div>
-                <!-- Step 2 -->
-                <div id="step-2" class="tab-content">
-                    <h3>Sell a Seat (SS)</h3>
-                    <p>From the availability list, you must select a flight and "sell" a seat to temporarily hold it for your client. The `SS` command requires the number of passengers, the specific fare class you want, and the line number from the list.</p>
-                    <p><strong>Your Entry:</strong></p>
-                    <code>SS1Y1</code>
-                    <div class="pro-tip">
-                        <strong>Explanation:</strong> This command tells the system to sell **1** seat in **Y** (full economy) class from line number **1** of the availability display. The system will respond with the flight details, confirming the seat is held. This is the first step in building the PNR (Passenger Name Record).
-                    </div>
-                </div>
-                <!-- Step 3 -->
-                <div id="step-3" class="tab-content">
-                    <h3>Add Passenger Name (NM)</h3>
-                    <p>A booking is useless without a name. The `NM` (Name) command is a mandatory element. The format is critical: `NM` followed by the number of passengers, surname, a slash, first name, and title (MR, MRS, MSTR for a child, MISS).</p>
-                    <p><strong>Your Entry:</strong></p>
-                    <code>NM1SMITH/JOHN MR</code>
-                    <div class="pro-tip">
-                        <strong>Explanation:</strong> This adds **1** passenger named **John Smith** to the booking. In the real world, this must match the passport exactly. An incorrect name can result in the passenger being denied boarding.
-                    </div>
-                </div>
-                <!-- Step 4 -->
-                <div id="step-4" class="tab-content">
-                    <h3>Add Contact Information (AP/APE)</h3>
-                    <p>Airlines require a way to contact the passenger in case of flight changes. You must add at least one contact element. `AP` is for phone numbers and `APE` is for email.</p>
-                    <p><strong>Your Entries:</strong></p>
-                    <code>AP +1-555-123-4567 - PASSENGER MOBILE</code>
-                    <code>APE J.SMITH@MAIL.COM</code>
-                    <div class="pro-tip">
-                        <strong>Explanation:</strong> These commands add a phone number and an email address to the PNR. This is a mandatory step before you can save the booking.
-                    </div>
-                </div>
-                <!-- Step 5 -->
-                <div id="step-5" class="tab-content">
-                    <h3>Finalize Mandatory Fields (TKOK/RF)</h3>
-                    <p>Before saving, Amadeus requires two final pieces of information: the ticketing arrangement and your signature. `TKOK` confirms a ticket will be issued. `RF` (Received From) is your digital signature.</p>
-                    <p><strong>Your Entries:</strong></p>
-                    <code>TKOK</code>
-                    <code>RF J SMITH</code>
-                     <div class="pro-tip">
-                        <strong>Explanation:</strong> `TKOK` tells the airline system that this is a confirmed booking that will be ticketed. `RF` is an audit trail, showing who made the booking (in this case, you received the request from J Smith).
-                    </div>
-                </div>
-                <!-- Step 6 -->
-                <div id="step-6" class="tab-content">
-                    <h3>Save the Booking (ER)</h3>
-                    <p>With all mandatory elements (Name, Itinerary, Contact, Ticketing, Received From) entered, you can now save the PNR. The `ER` (End & Retrieve) command finalizes the booking and the system will generate a unique Record Locator.</p>
-                    <p><strong>Your Entry:</strong></p>
-                    <code>ER</code>
-                     <div class="pro-tip">
-                        <strong>Explanation:</strong> The 6-character code the system returns (e.g., `JX7K9P`) is the **Record Locator**. This is the unique key to this entire booking. You will use it for any future action, from reprinting the itinerary to changing the flight. Congratulations, you've created a complete PNR!
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Cheatsheet Section -->
-    <section id="cheatsheet" class="section">
+    <!-- Why DonaTrainer -->
+    <section class="section" id="why">
       <div class="container">
-        <h2>Command & Control Center</h2>
-        <div class="tabs cheatsheet-tabs">
-            <div class="tab-nav">
-                <button class="tab-link active" data-tab="tab-1">Core Booking</button>
-                <button class="tab-link" data-tab="tab-2">PNR Servicing</button>
-                <button class="tab-link" data-tab="tab-3">Pricing & Ticketing</button>
-                <button class="tab-link" data-tab="tab-4">Advanced</button>
-            </div>
-            <div id="tab-1" class="tab-content active">
-                <ul>
-                  <li><strong>AN</strong> - Availability (<code>AN12NOVCDGLHR</code>)</li>
-                  <li><strong>SS</strong> - Sell Segment (<code>SS1Y1</code>)</li>
-                  <li><strong>NM</strong> - Name (<code>NM1SMITH/JOHN MR(CHD)</code>)</li>
-                  <li><strong>AP/APE</strong> - Contacts (<code>AP 33-123...</code>)</li>
-                  <li><strong>TKOK</strong> - Ticketing OK</li>
-                  <li><strong>RF</strong> - Received From (<code>RF J SMITH</code>)</li>
-                  <li><strong>ER</strong> - End & Retrieve</li>
-                </ul>
-            </div>
-            <div id="tab-2" class="tab-content">
-                <ul>
-                  <li><strong>RT</strong> - Retrieve PNR (<code>RT JX7K9P</code> or <code>RT</code>)</li>
-                  <li><strong>IR</strong> - Ignore & Retrieve</li>
-                  <li><strong>RH</strong> - Retrieve History</li>
-                  <li><strong>NU</strong> - Name Update (<code>NU1/1SMITH/JONATHAN</code>)</li>
-                  <li><strong>RM</strong> - Remark (<code>RM VIP CLIENT</code>)</li>
-                  <li><strong>XE</strong> - Cancel Element (<code>XE2</code>)</li>
-                  <li><strong>SP</strong> - Split PNR (<code>SP 2,3</code>)</li>
-                </ul>
-            </div>
-            <div id="tab-3" class="tab-content">
-                <ul>
-                  <li><strong>FXP</strong> - Price Itinerary</li>
-                  <li><strong>FQN</strong> - Display Fare Rules</li>
-                  <li><strong>TTP</strong> - Ticket PNR</li>
-                  <li><strong>TWX</strong> - Void Ticket (same day)</li>
-                  <li><strong>TRF</strong> - Process Refund</li>
-                  <li><strong>ITR/P</strong> - Print Itinerary</li>
-                </ul>
-            </div>
-            <div id="tab-4" class="tab-content">
-                <ul>
-                  <li><strong>FXA/FXK</strong> - Ancillary Services</li>
-                  <li><strong>FCM</strong> - Add Markup (<code>FCM-A20</code>)</li>
-                  <li><strong>QP/QT/QS</strong> - Queue Management</li>
-                  <li><strong>PROFILE</strong> - Client Profiles</li>
-                  <li><strong>SSR DOCS</strong> - Passport Info</li>
-                  <li><strong>CS</strong> - Clear Screen</li>
-                </ul>
-            </div>
+        <span class="eyebrow" style="display:flex; justify-content:center; margin-bottom:10px;">Why DonaTrainer</span>
+        <h2>A sandbox with real consequences, minus the risk</h2>
+        <p class="section-subtitle">Everything here behaves like a live GDS — because that's the only way muscle memory actually forms.</p>
+        <div class="gate-grid">
+          <div class="gate-card">
+            <span class="gate-code">GATE A1</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 12l7-2 5-7 2 1-3 6.5 6-1.5 3 2-8 3-3 6-2-1 1.5-5.5L2 12z"/></svg>
+            <h3>The ultimate sandbox</h3>
+            <p>Book, break, and rebook without a client ever finding out. Every mistake here is free tuition.</p>
+          </div>
+          <div class="gate-card">
+            <span class="gate-code">GATE A2</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/></svg>
+            <h3>Real-world chaos, on demand</h3>
+            <p>Schedule changes queue themselves for action just like they do on a live system — you'll learn to work a queue, not just a keyboard.</p>
+          </div>
+          <div class="gate-card">
+            <span class="gate-code">GATE A3</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 21s-7-4.5-9.5-9A5.5 5.5 0 0112 5.5 5.5 5.5 0 0121.5 12c-2.5 4.5-9.5 9-9.5 9z"/></svg>
+            <h3>Built for the community</h3>
+            <p>Free, forever, open-source. Our gift to every aspiring agent who can't get terminal access on day one.</p>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- About Donabil Section (SEO) -->
-    <section class="section alt">
-        <div class="container about-section">
-            <div class="about-content">
-                <h2>A Passion Project from Donabil</h2>
-                <p>DonaTrainer was born from a simple idea: every aspiring travel professional deserves access to the best tools. Developed under the leadership of our President, <strong>Mohammed Abdul Kahar</strong>, this simulator is our commitment to providing powerful, accessible educational resources. It's our way of giving back to the community and ensuring the next generation of agents are the most skilled yet.</p>
-                <p class="honorable-mention">With honorable mention to <strong>Muhammad Ali</strong>, General Director of Donabil, for his invaluable contributions to this project.</p>
-            </div>
+    <!-- What You'll Master -->
+    <section class="section alt" id="master">
+      <div class="container">
+        <span class="eyebrow" style="display:flex; justify-content:center; margin-bottom:10px;">What you'll master</span>
+        <h2>One command family at a time</h2>
+        <p class="section-subtitle">The full handbook walks through each of these — this is just the departure board.</p>
+        <div class="master-grid">
+          <a class="master-card" href="guide/index.html#pnr">
+            <span class="gate-code">GATE B1</span>
+            <h3>Booking &amp; PNR</h3>
+            <p>AN, SS, NM, contacts, rebooking, splitting, cancelling elements.</p>
+            <span class="go">Open chapter →</span>
+          </a>
+          <a class="master-card" href="guide/index.html#pricing">
+            <span class="gate-code">GATE B2</span>
+            <h3>Pricing &amp; Ticketing</h3>
+            <p>FXP/FXB/FQD, payment, validating carrier, e-tickets, voids.</p>
+            <span class="go">Open chapter →</span>
+          </a>
+          <a class="master-card" href="guide/index.html#queues">
+            <span class="gate-code">GATE B3</span>
+            <h3>Queues &amp; Profiles</h3>
+            <p>Working a queue, customer profiles, transferring elements.</p>
+            <span class="go">Open chapter →</span>
+          </a>
+          <a class="master-card" href="guide/index.html#decode">
+            <span class="gate-code">GATE B4</span>
+            <h3>Decode &amp; Reference</h3>
+            <p>City/airline codes, the help system, the full command index.</p>
+            <span class="go">Open chapter →</span>
+          </a>
         </div>
+      </div>
     </section>
 
+    <!-- Leadership / Credits -->
+    <section class="section" id="team">
+      <div class="container">
+        <span class="eyebrow" style="display:flex; justify-content:center; margin-bottom:10px;">A passion project from Donabil</span>
+        <h2>Built by people who work the desk</h2>
+        <p class="about-copy">DonaTrainer exists because every aspiring travel professional deserves terminal practice before their first real PNR. It's Donabil's way of giving back to the industry.</p>
+        <div class="bp-grid">
+          <div class="boarding-pass">
+            <div class="bp-main">
+              <span class="bp-eyebrow">Boarding Pass · Leadership</span>
+              <h3 class="bp-name">Mohammed Abdul Kahar</h3>
+              <div class="bp-row"><span>Role</span><strong>President, Donabil SAS</strong></div>
+              <div class="bp-row"><span>Status</span><strong>Confirmed</strong></div>
+            </div>
+            <div class="bp-stub">
+              <div class="bp-barcode"></div>
+              <a class="bp-linkedin" href="https://www.linkedin.com/in/ma-kahar/" target="_blank" rel="noopener">Connect ↗</a>
+            </div>
+          </div>
+          <div class="boarding-pass">
+            <div class="bp-main">
+              <span class="bp-eyebrow">Boarding Pass · Leadership</span>
+              <h3 class="bp-name">Muhammad Ali</h3>
+              <div class="bp-row"><span>Role</span><strong>General Director, Donabil</strong></div>
+              <div class="bp-row"><span>Status</span><strong>Confirmed</strong></div>
+            </div>
+            <div class="bp-stub">
+              <div class="bp-barcode"></div>
+              <a class="bp-linkedin" href="https://www.linkedin.com/in/muhammad-ali-84280a33a/" target="_blank" rel="noopener">Connect ↗</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
   </main>
 
   <!-- Footer -->
   <footer class="site-footer">
     <div class="container">
       <p>© <span id="year"></span> DonaTrainer (Donatek / Donabil). Educational use only. Not affiliated with any GDS.</p>
+      <p class="footer-link"><a href="guide/index.html">Handbook</a></p>
       <p class="footer-link"><a href="https://donabil.com" target="_blank" rel="noopener">donabil.com</a></p>
     </div>
   </footer>
 
-  <!-- Scroll to Top Button -->
   <button id="scrollTopBtn" title="Go to top">↑</button>
 
-  <!-- Scripts -->
   <script>
-    const typingElement = document.getElementById("typing-effect");
-    const text = "This isn't just a simulator. It's a dojo for your fingers, a gym for your GDS muscle memory. Free, forever.";
-    let index = 0;
-    function type() {
-      if (index < text.length) {
-        typingElement.textContent += text.charAt(index);
-        index++;
-        setTimeout(type, 40);
-      }
-    }
-    type();
-
-    // --- Tab Logic ---
-    function setupTabs(tabContainerClass) {
-        const tabContainer = document.querySelector('.' + tabContainerClass);
-        if (!tabContainer) return;
-
-        const tabLinks = tabContainer.querySelectorAll('.tab-link');
-        const tabContents = tabContainer.querySelectorAll('.tab-content');
-
-        tabLinks.forEach(link => {
-            link.addEventListener('click', () => {
-                const tabId = link.getAttribute('data-tab');
-
-                tabLinks.forEach(l => l.classList.remove('active'));
-                tabContents.forEach(c => c.classList.remove('active'));
-
-                link.classList.add('active');
-                tabContainer.querySelector('#' + tabId).classList.add('active');
-            });
-        });
-    }
-
-    setupTabs('tutorial-tabs');
-    setupTabs('cheatsheet-tabs');
-
-
-    document.addEventListener("contextmenu", e => e.preventDefault());
-    document.addEventListener("copy", e => e.preventDefault());
-    document.addEventListener("paste", e => e.preventDefault());
     document.getElementById("year").textContent = new Date().getFullYear();
 
-    // Scroll to Top Logic
+    // --- Signature hero: a live cryptic-command terminal ---
+    const heroScript = [
+      { t: "cmd", s: "AN15DECDOHLHR" },
+      { t: "out", s: "1  QR837  DOHLHR  09:30-14:10  J4 C6 Y9" },
+      { t: "cmd", s: "SS1Y1" },
+      { t: "ok",  s: "SOLD 1 SEAT(S) FROM OUTBOUND" },
+      { t: "cmd", s: "NM1SMITH/JOHN MR" },
+      { t: "ok",  s: "PAX ADDED: SMITH/JOHN MR" },
+      { t: "cmd", s: "FXP" },
+      { t: "ok",  s: "PRICED: EUR 465.50 - TST1 STORED" },
+      { t: "cmd", s: "ER" },
+      { t: "ok",  s: "PNR SAVED: X7K9P2" },
+    ];
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const term = document.getElementById("heroTerminal");
+
+    function renderStatic() {
+      term.innerHTML = heroScript.map(l => `<div class="ht-line ${l.t}">${l.s}</div>`).join("");
+    }
+
+    function typeLoop() {
+      let i = 0;
+      term.innerHTML = "";
+      function nextLine() {
+        if (i >= heroScript.length) {
+          setTimeout(() => { i = 0; term.innerHTML = ""; nextLine(); }, 2200);
+          return;
+        }
+        const line = heroScript[i];
+        const div = document.createElement("div");
+        div.className = `ht-line ${line.t}`;
+        term.appendChild(div);
+        if (line.t === "cmd") {
+          let c = 0;
+          const cursor = document.createElement("span");
+          cursor.className = "ht-cursor";
+          (function typeChar() {
+            if (c < line.s.length) {
+              div.textContent = line.s.slice(0, c + 1);
+              div.appendChild(cursor);
+              c++;
+              setTimeout(typeChar, 32);
+            } else {
+              cursor.remove();
+              i++;
+              setTimeout(nextLine, 260);
+            }
+          })();
+        } else {
+          div.textContent = line.s;
+          i++;
+          setTimeout(nextLine, 420);
+        }
+      }
+      nextLine();
+    }
+
+    if (reduceMotion) { renderStatic(); } else { typeLoop(); }
+
+    // Scroll to top
     const scrollTopBtn = document.getElementById("scrollTopBtn");
     window.onscroll = function() {
-        if (document.body.scrollTop > 100 || document.documentElement.scrollTop > 100) {
-            scrollTopBtn.style.display = "block";
-        } else {
-            scrollTopBtn.style.display = "none";
-        }
+      scrollTopBtn.style.display = (document.body.scrollTop > 200 || document.documentElement.scrollTop > 200) ? "block" : "none";
     };
-    scrollTopBtn.addEventListener("click", function() {
-        window.scrollTo({top: 0, behavior: 'smooth'});
-    });
+    scrollTopBtn.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
   </script>
 
 </body>

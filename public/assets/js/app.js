@@ -1,9 +1,11 @@
 /* ============================================================================
-   DonaTrainer — App JS (v8.0 - Amadeus Guide Expansion)
+   DonaTrainer — App JS (v9.0 - Full-Feature GDS Pass)
    - Author: Mohammed Abdul Kahar / Donabil SAS
    - Full command coverage from the Amadeus Basic training guide: pricing/TST,
      ticketing, queues, profiles, decode/encode, rebooking, name-search retrieval.
    - Realistic flight durations & class inventory driven by real airport coords.
+   - v9.0 adds: NU, SP, FCM, FXA/FXK, waitlisting (HL), and IROPS schedule
+     changes auto-queued to queue 5 - closing out the README's promised features.
 ============================================================================ */
 
 const AMX = window.AMX || (window.AMX = {});
@@ -82,24 +84,25 @@ function renderItineraryHTML(pnr) {
   if (!pnr) return "";
   const paxList = pnr.passengers.map((p, i) => `<div class="mono">${i+1}. ${p.name} (${p.type}${p.infant ? " + INF " + p.infant.name : ""})</div>`).join("");
   const segs = pnr.segments.map((s, i) => `<div class="mono">${i+1}. ${s.date} ${s.from}-${s.to} ${s.carrier}${s.flight} ${s.dep}-${s.arr} ${s.status}${s.cabin ? " " + s.cabin : ""} Seats: ${(s.seats || []).filter(Boolean).join(", ") || "N/A"}</div>`).join("");
-  const fare = pnr.fare ? `<div class="mono">TOTAL: ${pnr.fare.currency} ${pnr.fare.total.toFixed(2)}</div>` : "";
+  const fare = pnr.fare ? `<div class="mono">BASE+TAX: ${pnr.fare.currency} ${pnr.fare.total.toFixed(2)}</div><div class="mono">TOTAL (WITH MARKUP/ANCILLARIES): ${pnr.fare.currency} ${displayTotal(pnr).toFixed(2)}</div>` : "";
   const ssrList = (pnr.ssrs || []).map(s => `<div class="mono">&bull; SSR ${s.type} ${s.text}</div>`).join("");
   const contacts = pnr.contacts || {};
   const contactList = Object.entries(contacts).filter(([, v]) => v).map(([k, v]) => `<div class="mono">&bull; ${k.toUpperCase()}: ${v}</div>`).join("");
+  const ancillaryList = (pnr.ancillaries || []).map(a => `<div class="mono">&bull; ${a.type} ${a.text} - EUR ${a.price.toFixed(2)}</div>`).join("");
   const tickets = (pnr.tickets || []).map((t, i) => `<div class="mono">${i+1}. ${t.number} ${pnr.passengers[t.passengerIndex]?.name || ""}${t.voided ? " (VOID)" : ""}</div>`).join("");
-  return `<div class="itinerary"><h2>Itinerary: ${pnr.recordLocator || "UNSAVED"}</h2><hr><strong>Passengers</strong>${paxList}<hr><strong>Flights</strong>${segs}<hr><strong>Contacts</strong>${contactList || '<div class="mono">NONE</div>'}<hr><strong>Fare</strong>${fare}<hr><strong>Services</strong>${ssrList}<hr><strong>Tickets</strong>${tickets || '<div class="mono">NONE</div>'}</div>`;
+  return `<div class="itinerary"><h2>Itinerary: ${pnr.recordLocator || "UNSAVED"}</h2><hr><strong>Passengers</strong>${paxList}<hr><strong>Flights</strong>${segs}<hr><strong>Contacts</strong>${contactList || '<div class="mono">NONE</div>'}<hr><strong>Fare</strong>${fare}<hr><strong>Services</strong>${ssrList}<hr><strong>Ancillaries</strong>${ancillaryList || '<div class="mono">NONE</div>'}<hr><strong>Tickets</strong>${tickets || '<div class="mono">NONE</div>'}</div>`;
 }
 
 // --- PNR & PROFILE MANAGEMENT ---
-function newPNR() {
-  AMX.state.pnr = {
+function createEmptyPNR() {
+  return {
     recordLocator: "", passengers: [], segments: [], ssrs: [], remarks: [],
     history: [`CREATED BY M.A. KAHAR / DONABIL SAS`], status: "ACTIVE", ancillaries: [],
-    contacts: {}, tst: [], tickets: [],
+    contacts: {}, tst: [], tickets: [], markup: null,
     validatingCarrier: null, formOfPayment: null, commission: null,
   };
-  return AMX.state.pnr;
 }
+function newPNR() { AMX.state.pnr = createEmptyPNR(); return AMX.state.pnr; }
 function ensurePNR() { return AMX.state.pnr || newPNR(); }
 function addHistory(pnr, text) { if (pnr) pnr.history.push(`${fmt.nowTime()} ${text}`); }
 function savePNR(pnr) { if (pnr?.recordLocator) localStorage.setItem(`pnr_${pnr.recordLocator}`, JSON.stringify(pnr)); }
@@ -127,6 +130,25 @@ function buildElementList(pnr) {
   return items;
 }
 function pnrTstLatest(pnr) { return pnr.tst && pnr.tst.length ? pnr.tst[pnr.tst.length - 1] : null; }
+function markupAmount(pnr) {
+  if (!pnr.markup || !pnr.fare) return 0;
+  return pnr.markup.type === "A" ? pnr.markup.value : pnr.fare.total * (pnr.markup.value / 100);
+}
+function ancillaryTotal(pnr) { return (pnr.ancillaries || []).reduce((sum, a) => sum + (a.price || 0), 0); }
+function displayTotal(pnr) { return pnr.fare ? pnr.fare.total + markupAmount(pnr) + ancillaryTotal(pnr) : 0; }
+function maybeTriggerIROPS(pnr) {
+  if (!pnr || !pnr.segments.length) return false;
+  if (Math.random() >= 0.2) return false;
+  const idx = Math.floor(Math.random() * pnr.segments.length);
+  const seg = pnr.segments[idx];
+  if (seg.status === "SC") return false;
+  seg.status = "SC";
+  addHistory(pnr, `SCHEDULE CHANGE ON SEGMENT ${idx + 1} (${seg.carrier}${seg.flight})`);
+  const q = ensureQueue("5");
+  if (pnr.recordLocator && !q.pnrs.includes(pnr.recordLocator)) q.pnrs.push(pnr.recordLocator);
+  if (pnr.recordLocator) savePNR(pnr);
+  return true;
+}
 
 // --- DYNAMIC ENGINE ---
 function haversineKm(lat1, lon1, lat2, lon2) {
@@ -153,6 +175,11 @@ function randomClasses(distanceKm) {
   const count = 4 + Math.floor(Math.random() * 3);
   const chosen = letters.slice(0, Math.min(count, letters.length));
   return chosen.map(l => `${l}${Math.random() < 0.15 ? 0 : Math.floor(Math.random() * 9) + 1}`).join(" ");
+}
+function classAvailable(classesStr, letter) {
+  const token = (classesStr || "").split(" ").find(t => t[0] === letter);
+  if (!token) return true;
+  return parseInt(token.slice(1), 10) > 0;
 }
 function findAirport(code) { return AMX.state.world.airports.find(a => a.code === code); }
 function buildLeg(date, from, to, carrier) {
@@ -253,13 +280,17 @@ const HELP_TOPICS = {
   AN: "AN<DDMMM><FROM><TO>[/R<DDMMM>][/A<CARRIER>][/D][/C<CLASS>][/X<CITY>] - Neutral availability display. /R adds a return date, /A filters one airline, /D shows direct flights only, /C focuses on a class, /X excludes a connection city.",
   NAME: "NM1<SURNAME>/<FIRSTNAME> <TITLE> adds the passenger name element. Append (CHD/DDMMMYY) for a child or (INF/INFANTNAME/DDMMMYY) for an infant travelling on an adult's lap.",
   STEPS: "PNR creation order: AN (availability) > SS (sell) > NM (name) > AP/APE (contact) > TKOK (ticketing arrangement) > RF (received from) > ER (save).",
-  RT: "RT<LOCATOR> retrieves a PNR. RT/<SURNAME> searches by exact surname, RT/<PARTIAL> by partial surname (numbered list - select with RT<n>). Bare RT redisplays the active PNR.",
+  RT: "RT<LOCATOR> retrieves a PNR. RT/<SURNAME> searches by exact surname, RT/<PARTIAL> by partial surname (numbered list - select with RT<n>). Bare RT redisplays the active PNR. Retrieval occasionally triggers a random schedule change (IROPS), queuing the PNR to queue 5.",
+  NU: "NU<OLD#>/<NEW#><SURNAME>/<FIRSTNAME> [TITLE] updates a passenger's name in the active PNR.",
+  SP: "SP <PAX NUMBER>[,<PAX NUMBER>...] splits the listed passengers (and the shared itinerary) into a new, unsaved PNR - save it with ER.",
   PRICING: "FXX/FXR display a fare without storing it; FXP/FXB store it as a TST (FXB also uses the lowest fare found). Add /P1, /PAX or /INF to price a subset of passengers.",
   FXP: "FXP prices the active itinerary and stores the result as a TST. Use /P1 for passenger 1 only, /PAX for adults+children, /INF for the infant only.",
   FXD: "FXD<FROM><TO> (or FXD<N><FROM><TO>) runs the Master Pricer and returns a ranked list of fare recommendations for the city pair.",
   FQD: "FQD<FROM><TO>[/A<CARRIER>][/C<CLASS>][/D<DDMMM>][/R,-CH|/R,-INF] displays fares for a city pair without needing a PNR.",
   FQP: "FQP<FROM>/A<CARRIER>/D<DDMMM><TO>[/R,-CH|/R,-INF] prices a specific itinerary without creating a PNR. Chain a second leg with --- for a connection.",
   FP: "FP sets the form of payment: FP CASH, FP INV, or FP CC <VI|CA|AX> <CARDNUMBER>/<MMYY>. Required before ticketing.",
+  FCM: "FCM-A<AMOUNT> adds a flat agency markup; FCM-C<PERCENT> adds a percentage markup. Applied on top of the priced fare when displayed or ticketed.",
+  SERVICES: "FXA/FXK <DESCRIPTION> <PRICE> records an ancillary service (bag, seat upgrade, etc.) against the PNR and adds it to the displayed total.",
   TTP: "TTP issues tickets from the active TST. Requires a validating carrier (FV) and a form of payment (FP) on file. TTP/P1, TTP/PAX and TTP/INF scope the issuance.",
   TWD: "TWD displays the current e-ticket. TWD/L<n> selects by line, TWD/TKT<number> by ticket number, TWD/TAX shows the tax breakdown, TWH shows the ticket's history.",
   TJQ: "TJQ lists issued tickets. /D-<DDMMM> filters a date, /D-<DDMMM><DDMMM> a range, /SOF/QVP-<CARRIER> an airline, /SOF/QTC-RFND voids only.",
@@ -322,11 +353,16 @@ const commands = {
       const sel = availabilityList.find(l => l.line == lineNo);
       if (!sel) return writeLine(`LINE ${lineNo} NOT FOUND IN ${index === 0 ? "OUTBOUND" : "INBOUND"} DISPLAY`, "err");
 
+      let anyWaitlisted = false;
       for (let i = 0; i < pax; i++) {
-        sel.segments.forEach(leg => pnr.segments.push({ ...leg, cabin: rbd, status: "HK", seats: [] }));
+        sel.segments.forEach(leg => {
+          const status = classAvailable(leg.classes, rbd) ? "HK" : "HL";
+          if (status === "HL") anyWaitlisted = true;
+          pnr.segments.push({ ...leg, cabin: rbd, status, seats: [] });
+        });
       }
-      addHistory(pnr, `SOLD ${pax} IN ${rbd} FROM LINE ${lineNo}`);
-      writeLine(`SOLD ${pax} SEAT(S) FROM ${index === 0 ? "OUTBOUND" : "INBOUND"}${sel.connection ? " (CONNECTION - 2 SEGMENTS)" : ""}`, "ok");
+      addHistory(pnr, `SOLD ${pax} IN ${rbd} FROM LINE ${lineNo}${anyWaitlisted ? " (WAITLISTED)" : ""}`);
+      writeLine(`${anyWaitlisted ? "WAITLISTED (HL)" : "SOLD"} ${pax} SEAT(S) FROM ${index === 0 ? "OUTBOUND" : "INBOUND"}${sel.connection ? " (CONNECTION - 2 SEGMENTS)" : ""}`, anyWaitlisted ? "hint" : "ok");
     });
   },
   NM: (arg) => {
@@ -370,7 +406,9 @@ const commands = {
       const pnr = loadPNR(sel.locator);
       AMX.state.pnr = pnr;
       AMX.state.nameSearchResults = null;
+      const disrupted = maybeTriggerIROPS(pnr);
       writeLine(`PNR ${sel.locator} RETRIEVED`, "ok");
+      if (disrupted) writeLine("SCHEDULE CHANGE DETECTED - PNR AUTO-QUEUED TO QUEUE 5", "err");
       return writeHTML(renderItineraryHTML(pnr));
     }
     const nameMatch = upper.match(/^\/(.+)$/);
@@ -387,7 +425,9 @@ const commands = {
       if (results.length === 1) {
         const pnr = loadPNR(results[0].locator);
         AMX.state.pnr = pnr;
+        const disrupted = maybeTriggerIROPS(pnr);
         writeLine(`PNR ${results[0].locator} RETRIEVED`, "ok");
+        if (disrupted) writeLine("SCHEDULE CHANGE DETECTED - PNR AUTO-QUEUED TO QUEUE 5", "err");
         return writeHTML(renderItineraryHTML(pnr));
       }
       AMX.state.nameSearchResults = results;
@@ -399,7 +439,9 @@ const commands = {
     if (pnr) {
       AMX.state.pnr = pnr;
       AMX.state.nameSearchResults = null;
+      const disrupted = maybeTriggerIROPS(pnr);
       writeLine(`PNR ${upper} RETRIEVED`, "ok");
+      if (disrupted) writeLine("SCHEDULE CHANGE DETECTED - PNR AUTO-QUEUED TO QUEUE 5", "err");
       writeHTML(renderItineraryHTML(pnr));
     } else {
       writeLine("PNR NOT FOUND", "err");
@@ -433,6 +475,44 @@ const commands = {
     if (!pnr) return writeLine("NO ACTIVE PNR", "err");
     writeLine(`HISTORY FOR ${pnr.recordLocator || "UNSAVED PNR"}`, "ok");
     pnr.history.forEach(h => writeLine(h, "hint"));
+  },
+  NU: (arg) => {
+    const pnr = ensurePNR();
+    const m = arg.toUpperCase().match(/^(\d+)\/(\d+)([A-Z'\-]+)\/([A-Z'\-]+)(?:\s+(MR|MRS|MS|MSTR|MISS))?$/);
+    if (!m) return writeLine("FORMAT: NU<OLD#>/<NEW#><SURNAME>/<FIRSTNAME> [TITLE]", "err");
+    const [, oldIdx, , surname, first, title] = m;
+    const pax = pnr.passengers[parseInt(oldIdx, 10) - 1];
+    if (!pax) return writeLine("PASSENGER NOT FOUND", "err");
+    const oldName = pax.name;
+    const existingTitle = pax.name.split(" ").pop();
+    pax.name = `${surname}/${first} ${title || existingTitle}`;
+    addHistory(pnr, `UPDATED NAME ${oldName} -> ${pax.name}`);
+    writeLine(`NAME UPDATED: ${pax.name}`, "ok");
+  },
+  SP: (arg) => {
+    const pnr = AMX.state.pnr;
+    if (!pnr) return writeLine("NO ACTIVE PNR", "err");
+    const nums = arg.trim().split(",").map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
+    if (!nums.length) return writeLine("FORMAT: SP <PAX NUMBER>[,<PAX NUMBER>...]", "err");
+    const idxSet = new Set(nums.map(n => n - 1));
+    const movedPax = [];
+    const keptPax = [];
+    pnr.passengers.forEach((p, i) => (idxSet.has(i) ? movedPax : keptPax).push(p));
+    if (!movedPax.length) return writeLine("NO MATCHING PASSENGERS", "err");
+    if (!keptPax.length) return writeLine("CANNOT SPLIT ALL PASSENGERS OUT OF A PNR - LEAVE AT LEAST ONE", "err");
+
+    pnr.passengers = keptPax;
+    addHistory(pnr, `SPLIT ${movedPax.length} PAX TO NEW PNR`);
+    if (pnr.recordLocator) savePNR(pnr);
+
+    const newPnr = createEmptyPNR();
+    newPnr.passengers = movedPax;
+    newPnr.segments = JSON.parse(JSON.stringify(pnr.segments));
+    newPnr.contacts = { ...pnr.contacts };
+    newPnr.history.push(`SPLIT FROM PNR ${pnr.recordLocator || "UNSAVED"}`);
+    AMX.state.pnr = newPnr;
+    writeLine(`SPLIT COMPLETE - ${movedPax.length} PAX MOVED TO NEW PNR (UNSAVED). SAVE WITH ER.`, "ok");
+    writeHTML(renderItineraryHTML(newPnr));
   },
   XE: (arg) => {
     const pnr = ensurePNR();
@@ -655,6 +735,32 @@ const commands = {
     addHistory(ensurePNR(), `SET COMMISSION ${arg.trim()}`);
     writeLine(`COMMISSION SET: ${arg.trim()}`, "ok");
   },
+  FCM: (arg) => {
+    const pnr = ensurePNR();
+    const m = arg.trim().toUpperCase().match(/^-([AC])(\d+(?:\.\d+)?)$/);
+    if (!m) return writeLine("FORMAT: FCM-A<AMOUNT> (FLAT MARKUP) OR FCM-C<PERCENT>", "err");
+    pnr.markup = { type: m[1], value: parseFloat(m[2]) };
+    addHistory(pnr, `SET AGENCY MARKUP ${m[1]}${m[2]}`);
+    writeLine(`AGENCY MARKUP SET: ${m[1] === "A" ? "EUR " + m[2] : m[2] + "%"}`, "ok");
+  },
+  FXA: (arg) => {
+    const pnr = ensurePNR();
+    const m = arg.trim().match(/^(.*)\s+(\d+(?:\.\d+)?)$/);
+    if (!m) return writeLine("FORMAT: FXA <DESCRIPTION> <PRICE>", "err");
+    const price = parseFloat(m[2]);
+    pnr.ancillaries.push({ type: "FXA", text: m[1].trim().toUpperCase(), price });
+    addHistory(pnr, `ADDED ANCILLARY FXA ${m[1].trim().toUpperCase()} (${price.toFixed(2)})`);
+    writeLine(`ANCILLARY ADDED: ${m[1].trim().toUpperCase()} - EUR ${price.toFixed(2)}`, "ok");
+  },
+  FXK: (arg) => {
+    const pnr = ensurePNR();
+    const m = arg.trim().match(/^(.*)\s+(\d+(?:\.\d+)?)$/);
+    if (!m) return writeLine("FORMAT: FXK <DESCRIPTION> <PRICE>", "err");
+    const price = parseFloat(m[2]);
+    pnr.ancillaries.push({ type: "FXK", text: m[1].trim().toUpperCase(), price });
+    addHistory(pnr, `ADDED ANCILLARY FXK ${m[1].trim().toUpperCase()} (${price.toFixed(2)})`);
+    writeLine(`ANCILLARY ADDED: ${m[1].trim().toUpperCase()} - EUR ${price.toFixed(2)}`, "ok");
+  },
   TTP: (arg) => {
     const pnr = ensurePNR();
     const tst = pnrTstLatest(pnr);
@@ -725,7 +831,7 @@ const commands = {
     writeLine(`E-TICKET ${ticket.number}${ticket.voided ? " (VOID)" : ""}`, "ok");
     writeLine(`PASSENGER: ${pax?.name || "UNKNOWN"}`, "hint");
     pnr.segments.forEach((s, i) => writeLine(`${i + 1}. ${s.date} ${s.from}-${s.to} ${s.carrier}${s.flight} ${s.status}`, "hint"));
-    writeLine(`FARE: ${pnr.fare?.currency || ""} ${(pnr.fare?.total || 0).toFixed(2)}`, "hint");
+    writeLine(`FARE: ${pnr.fare?.currency || ""} ${displayTotal(pnr).toFixed(2)}`, "hint");
     AMX.state.lastTicket = ticket;
   },
   TWH: () => {
