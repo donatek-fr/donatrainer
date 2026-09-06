@@ -4,613 +4,841 @@
       "code": "LHR",
       "city": "LONDON",
       "name": "Heathrow",
-      "country": "GB"
+      "country": "GB",
+      "lat": 51.47,
+      "lon": -0.4543
     },
     {
       "code": "LGW",
       "city": "LONDON",
       "name": "Gatwick",
-      "country": "GB"
+      "country": "GB",
+      "lat": 51.1537,
+      "lon": -0.1821
     },
     {
       "code": "MAN",
       "city": "MANCHESTER",
       "name": "Manchester",
-      "country": "GB"
+      "country": "GB",
+      "lat": 53.3537,
+      "lon": -2.275
     },
     {
       "code": "CDG",
       "city": "PARIS",
       "name": "Charles de Gaulle",
-      "country": "FR"
+      "country": "FR",
+      "lat": 49.0097,
+      "lon": 2.5479
     },
     {
       "code": "ORY",
       "city": "PARIS",
       "name": "Orly",
-      "country": "FR"
+      "country": "FR",
+      "lat": 48.7262,
+      "lon": 2.3652
     },
     {
       "code": "AMS",
       "city": "AMSTERDAM",
       "name": "Schiphol",
-      "country": "NL"
+      "country": "NL",
+      "lat": 52.3105,
+      "lon": 4.7683
     },
     {
       "code": "FRA",
       "city": "FRANKFURT",
       "name": "Frankfurt Main",
-      "country": "DE"
+      "country": "DE",
+      "lat": 50.0379,
+      "lon": 8.5622
     },
     {
       "code": "MUC",
       "city": "MUNICH",
       "name": "Franz Josef Strauss",
-      "country": "DE"
+      "country": "DE",
+      "lat": 48.3538,
+      "lon": 11.7861
     },
     {
       "code": "MAD",
       "city": "MADRID",
       "name": "Barajas",
-      "country": "ES"
+      "country": "ES",
+      "lat": 40.4983,
+      "lon": -3.5676
     },
     {
       "code": "BCN",
       "city": "BARCELONA",
       "name": "El Prat",
-      "country": "ES"
+      "country": "ES",
+      "lat": 41.2971,
+      "lon": 2.0785
     },
     {
       "code": "ZRH",
       "city": "ZURICH",
       "name": "Zurich",
-      "country": "CH"
+      "country": "CH",
+      "lat": 47.4647,
+      "lon": 8.5492
     },
     {
       "code": "GVA",
       "city": "GENEVA",
       "name": "Geneva",
-      "country": "CH"
+      "country": "CH",
+      "lat": 46.2381,
+      "lon": 6.1089
     },
     {
       "code": "BSL",
       "city": "BASEL",
       "name": "EuroAirport Basel",
-      "country": "CH"
+      "country": "CH",
+      "lat": 47.5896,
+      "lon": 7.5299
     },
     {
       "code": "FCO",
       "city": "ROME",
       "name": "Fiumicino",
-      "country": "IT"
+      "country": "IT",
+      "lat": 41.8003,
+      "lon": 12.2389
     },
     {
       "code": "MXP",
       "city": "MILAN",
       "name": "Malpensa",
-      "country": "IT"
+      "country": "IT",
+      "lat": 45.6306,
+      "lon": 8.7281
     },
     {
       "code": "VIE",
       "city": "VIENNA",
       "name": "Schwechat",
-      "country": "AT"
+      "country": "AT",
+      "lat": 48.1103,
+      "lon": 16.5697
     },
     {
       "code": "BRU",
       "city": "BRUSSELS",
       "name": "Brussels",
-      "country": "BE"
+      "country": "BE",
+      "lat": 50.9014,
+      "lon": 4.4844
     },
     {
       "code": "LIS",
       "city": "LISBON",
       "name": "Humberto Delgado",
-      "country": "PT"
+      "country": "PT",
+      "lat": 38.7813,
+      "lon": -9.1359
     },
     {
       "code": "CPH",
       "city": "COPENHAGEN",
       "name": "Kastrup",
-      "country": "DK"
+      "country": "DK",
+      "lat": 55.618,
+      "lon": 12.656
     },
     {
       "code": "ARN",
       "city": "STOCKHOLM",
       "name": "Arlanda",
-      "country": "SE"
+      "country": "SE",
+      "lat": 59.6519,
+      "lon": 17.9186
     },
     {
       "code": "OSL",
       "city": "OSLO",
       "name": "Gardermoen",
-      "country": "NO"
+      "country": "NO",
+      "lat": 60.1976,
+      "lon": 11.1004
     },
     {
       "code": "HEL",
       "city": "HELSINKI",
       "name": "Vantaa",
-      "country": "FI"
+      "country": "FI",
+      "lat": 60.3172,
+      "lon": 24.9633
     },
     {
       "code": "ATH",
       "city": "ATHENS",
       "name": "Eleftherios Venizelos",
-      "country": "GR"
+      "country": "GR",
+      "lat": 37.9364,
+      "lon": 23.9445
     },
     {
       "code": "IST",
       "city": "ISTANBUL",
       "name": "Istanbul Airport",
-      "country": "TR"
+      "country": "TR",
+      "lat": 41.2753,
+      "lon": 28.7519
     },
     {
       "code": "JFK",
       "city": "NEW YORK",
       "name": "John F Kennedy",
-      "country": "US"
+      "country": "US",
+      "lat": 40.6413,
+      "lon": -73.7781
     },
     {
       "code": "EWR",
       "city": "NEWARK",
       "name": "Newark Liberty",
-      "country": "US"
+      "country": "US",
+      "lat": 40.6895,
+      "lon": -74.1745
     },
     {
       "code": "LGA",
       "city": "NEW YORK",
       "name": "LaGuardia",
-      "country": "US"
+      "country": "US",
+      "lat": 40.7769,
+      "lon": -73.874
     },
     {
       "code": "LAX",
       "city": "LOS ANGELES",
       "name": "Los Angeles Intl",
-      "country": "US"
+      "country": "US",
+      "lat": 33.9416,
+      "lon": -118.4085
     },
     {
       "code": "SNA",
       "city": "SANTA ANA",
       "name": "John Wayne",
-      "country": "US"
+      "country": "US",
+      "lat": 33.6757,
+      "lon": -117.8682
     },
     {
       "code": "SAN",
       "city": "SAN DIEGO",
       "name": "San Diego Intl",
-      "country": "US"
+      "country": "US",
+      "lat": 32.7338,
+      "lon": -117.1933
     },
     {
       "code": "ORD",
       "city": "CHICAGO",
       "name": "O'Hare",
-      "country": "US"
+      "country": "US",
+      "lat": 41.9742,
+      "lon": -87.9073
     },
     {
       "code": "MDW",
       "city": "CHICAGO",
       "name": "Midway",
-      "country": "US"
+      "country": "US",
+      "lat": 41.7868,
+      "lon": -87.7522
     },
     {
       "code": "ATL",
       "city": "ATLANTA",
       "name": "Hartsfield-Jackson",
-      "country": "US"
+      "country": "US",
+      "lat": 33.6407,
+      "lon": -84.4277
     },
     {
       "code": "DFW",
       "city": "DALLAS",
       "name": "Dallas/Fort Worth",
-      "country": "US"
+      "country": "US",
+      "lat": 32.8998,
+      "lon": -97.0403
     },
     {
       "code": "IAH",
       "city": "HOUSTON",
       "name": "George Bush Intercontinental",
-      "country": "US"
+      "country": "US",
+      "lat": 29.9902,
+      "lon": -95.3368
     },
     {
       "code": "AUS",
       "city": "AUSTIN",
       "name": "Bergstrom",
-      "country": "US"
+      "country": "US",
+      "lat": 30.1975,
+      "lon": -97.6664
     },
     {
       "code": "SEA",
       "city": "SEATTLE",
       "name": "Sea-Tac",
-      "country": "US"
+      "country": "US",
+      "lat": 47.4502,
+      "lon": -122.3088
     },
     {
       "code": "SFO",
       "city": "SAN FRANCISCO",
       "name": "San Francisco Intl",
-      "country": "US"
+      "country": "US",
+      "lat": 37.6213,
+      "lon": -122.379
     },
     {
       "code": "MIA",
       "city": "MIAMI",
       "name": "Miami Intl",
-      "country": "US"
+      "country": "US",
+      "lat": 25.7959,
+      "lon": -80.287
     },
     {
       "code": "BOS",
       "city": "BOSTON",
       "name": "Logan Intl",
-      "country": "US"
+      "country": "US",
+      "lat": 42.3656,
+      "lon": -71.0096
     },
     {
       "code": "IAD",
       "city": "WASHINGTON",
       "name": "Dulles Intl",
-      "country": "US"
+      "country": "US",
+      "lat": 38.9531,
+      "lon": -77.4565
     },
     {
       "code": "DCA",
       "city": "WASHINGTON",
       "name": "Reagan National",
-      "country": "US"
+      "country": "US",
+      "lat": 38.8512,
+      "lon": -77.0402
     },
     {
       "code": "YYZ",
       "city": "TORONTO",
       "name": "Pearson",
-      "country": "CA"
+      "country": "CA",
+      "lat": 43.6777,
+      "lon": -79.6248
     },
     {
       "code": "YVR",
       "city": "VANCOUVER",
       "name": "Vancouver Intl",
-      "country": "CA"
+      "country": "CA",
+      "lat": 49.1967,
+      "lon": -123.1815
     },
     {
       "code": "YUL",
       "city": "MONTREAL",
       "name": "Trudeau",
-      "country": "CA"
+      "country": "CA",
+      "lat": 45.4706,
+      "lon": -73.7408
     },
     {
       "code": "MEX",
       "city": "MEXICO CITY",
       "name": "Benito Juarez",
-      "country": "MX"
+      "country": "MX",
+      "lat": 19.4363,
+      "lon": -99.0721
     },
     {
       "code": "GDL",
       "city": "GUADALAJARA",
       "name": "Miguel Hidalgo",
-      "country": "MX"
+      "country": "MX",
+      "lat": 20.5218,
+      "lon": -103.3111
     },
     {
       "code": "CUN",
       "city": "CANCUN",
       "name": "Cancun Intl",
-      "country": "MX"
+      "country": "MX",
+      "lat": 21.0365,
+      "lon": -86.8771
     },
     {
       "code": "GRU",
       "city": "SAO PAULO",
       "name": "Guarulhos",
-      "country": "BR"
+      "country": "BR",
+      "lat": -23.4356,
+      "lon": -46.4731
     },
     {
       "code": "GIG",
       "city": "RIO DE JANEIRO",
       "name": "Galeao",
-      "country": "BR"
+      "country": "BR",
+      "lat": -22.809,
+      "lon": -43.2506
     },
     {
       "code": "BSB",
       "city": "BRASILIA",
       "name": "Brasilia",
-      "country": "BR"
+      "country": "BR",
+      "lat": -15.8697,
+      "lon": -47.9208
     },
     {
       "code": "EZE",
       "city": "BUENOS AIRES",
       "name": "Ezeiza",
-      "country": "AR"
+      "country": "AR",
+      "lat": -34.8222,
+      "lon": -58.5358
     },
     {
       "code": "SCL",
       "city": "SANTIAGO",
       "name": "Arturo Merino Benitez",
-      "country": "CL"
+      "country": "CL",
+      "lat": -33.393,
+      "lon": -70.7858
     },
     {
       "code": "BOG",
       "city": "BOGOTA",
       "name": "El Dorado",
-      "country": "CO"
+      "country": "CO",
+      "lat": 4.7016,
+      "lon": -74.1469
     },
     {
       "code": "LIM",
       "city": "LIMA",
       "name": "Jorge Chavez",
-      "country": "PE"
+      "country": "PE",
+      "lat": -12.0219,
+      "lon": -77.1143
     },
     {
       "code": "DXB",
       "city": "DUBAI",
       "name": "Dubai International",
-      "country": "AE"
+      "country": "AE",
+      "lat": 25.2532,
+      "lon": 55.3657
     },
     {
       "code": "AUH",
       "city": "ABU DHABI",
       "name": "Zayed International",
-      "country": "AE"
+      "country": "AE",
+      "lat": 24.433,
+      "lon": 54.6511
     },
     {
       "code": "DOH",
       "city": "DOHA",
       "name": "Hamad International",
-      "country": "QA"
+      "country": "QA",
+      "lat": 25.2609,
+      "lon": 51.6138
     },
     {
       "code": "JED",
       "city": "JEDDAH",
       "name": "King Abdulaziz",
-      "country": "SA"
+      "country": "SA",
+      "lat": 21.6796,
+      "lon": 39.1565
     },
     {
       "code": "RUH",
       "city": "RIYADH",
       "name": "King Khalid",
-      "country": "SA"
+      "country": "SA",
+      "lat": 24.9576,
+      "lon": 46.6988
     },
     {
       "code": "CAI",
       "city": "CAIRO",
       "name": "Cairo International",
-      "country": "EG"
+      "country": "EG",
+      "lat": 30.1219,
+      "lon": 31.4056
     },
     {
       "code": "ADD",
       "city": "ADDIS ABABA",
       "name": "Bole",
-      "country": "ET"
+      "country": "ET",
+      "lat": 8.9779,
+      "lon": 38.7993
     },
     {
       "code": "NBO",
       "city": "NAIROBI",
       "name": "Jomo Kenyatta",
-      "country": "KE"
+      "country": "KE",
+      "lat": -1.3192,
+      "lon": 36.9278
     },
     {
       "code": "LOS",
       "city": "LAGOS",
       "name": "Murtala Muhammed",
-      "country": "NG"
+      "country": "NG",
+      "lat": 6.5774,
+      "lon": 3.3212
     },
     {
       "code": "JNB",
       "city": "JOHANNESBURG",
       "name": "O.R. Tambo",
-      "country": "ZA"
+      "country": "ZA",
+      "lat": -26.1392,
+      "lon": 28.246
     },
     {
       "code": "CPT",
       "city": "CAPE TOWN",
       "name": "Cape Town Intl",
-      "country": "ZA"
+      "country": "ZA",
+      "lat": -33.9715,
+      "lon": 18.6021
     },
     {
       "code": "DEL",
       "city": "DELHI",
       "name": "Indira Gandhi",
-      "country": "IN"
+      "country": "IN",
+      "lat": 28.5562,
+      "lon": 77.1
     },
     {
       "code": "BOM",
       "city": "MUMBAI",
       "name": "Chhatrapati Shivaji",
-      "country": "IN"
+      "country": "IN",
+      "lat": 19.0896,
+      "lon": 72.8656
     },
     {
       "code": "BLR",
       "city": "BENGALURU",
       "name": "Kempegowda",
-      "country": "IN"
+      "country": "IN",
+      "lat": 13.1986,
+      "lon": 77.7066
     },
     {
       "code": "MAA",
       "city": "CHENNAI",
       "name": "Chennai",
-      "country": "IN"
+      "country": "IN",
+      "lat": 12.9941,
+      "lon": 80.1709
     },
     {
       "code": "CCU",
       "city": "KOLKATA",
       "name": "Netaji Subhas Chandra",
-      "country": "IN"
+      "country": "IN",
+      "lat": 22.6547,
+      "lon": 88.4467
     },
     {
       "code": "HYD",
       "city": "HYDERABAD",
       "name": "Rajiv Gandhi",
-      "country": "IN"
+      "country": "IN",
+      "lat": 17.2403,
+      "lon": 78.4294
     },
     {
       "code": "DAC",
       "city": "DHAKA",
       "name": "Hazrat Shahjalal",
-      "country": "BD"
+      "country": "BD",
+      "lat": 23.8433,
+      "lon": 90.3978
     },
     {
       "code": "CGP",
       "city": "CHATTOGRAM",
       "name": "Shah Amanat",
-      "country": "BD"
+      "country": "BD",
+      "lat": 22.2496,
+      "lon": 91.8133
     },
     {
       "code": "ZYL",
       "city": "SYLHET",
       "name": "Osmani International",
-      "country": "BD"
+      "country": "BD",
+      "lat": 24.9633,
+      "lon": 91.8668
     },
     {
       "code": "KHI",
       "city": "KARACHI",
       "name": "Jinnah International",
-      "country": "PK"
+      "country": "PK",
+      "lat": 24.9065,
+      "lon": 67.1608
     },
     {
       "code": "LHE",
       "city": "LAHORE",
       "name": "Allama Iqbal",
-      "country": "PK"
+      "country": "PK",
+      "lat": 31.5216,
+      "lon": 74.4036
     },
     {
       "code": "ISB",
       "city": "ISLAMABAD",
       "name": "Islamabad International",
-      "country": "PK"
+      "country": "PK",
+      "lat": 33.6167,
+      "lon": 73.0991
     },
     {
       "code": "CMB",
       "city": "COLOMBO",
       "name": "Bandaranaike",
-      "country": "LK"
+      "country": "LK",
+      "lat": 7.1808,
+      "lon": 79.8841
     },
     {
       "code": "KTM",
       "city": "KATHMANDU",
       "name": "Tribhuvan",
-      "country": "NP"
+      "country": "NP",
+      "lat": 27.6966,
+      "lon": 85.3591
     },
     {
       "code": "BKK",
       "city": "BANGKOK",
       "name": "Suvarnabhumi",
-      "country": "TH"
+      "country": "TH",
+      "lat": 13.69,
+      "lon": 100.7501
     },
     {
       "code": "SIN",
       "city": "SINGAPORE",
       "name": "Changi",
-      "country": "SG"
+      "country": "SG",
+      "lat": 1.3644,
+      "lon": 103.9915
     },
     {
       "code": "KUL",
       "city": "KUALA LUMPUR",
       "name": "KLIA",
-      "country": "MY"
+      "country": "MY",
+      "lat": 2.7456,
+      "lon": 101.7099
     },
     {
       "code": "HKG",
       "city": "HONG KONG",
       "name": "Chek Lap Kok",
-      "country": "HK"
+      "country": "HK",
+      "lat": 22.308,
+      "lon": 113.9185
     },
     {
       "code": "NRT",
       "city": "TOKYO",
       "name": "Narita",
-      "country": "JP"
+      "country": "JP",
+      "lat": 35.772,
+      "lon": 140.3929
     },
     {
       "code": "HND",
       "city": "TOKYO",
       "name": "Haneda",
-      "country": "JP"
+      "country": "JP",
+      "lat": 35.5494,
+      "lon": 139.7798
     },
     {
       "code": "ICN",
       "city": "SEOUL",
       "name": "Incheon",
-      "country": "KR"
+      "country": "KR",
+      "lat": 37.4602,
+      "lon": 126.4407
     },
     {
       "code": "PEK",
       "city": "BEIJING",
       "name": "Capital",
-      "country": "CN"
+      "country": "CN",
+      "lat": 40.0799,
+      "lon": 116.6031
     },
     {
       "code": "PKX",
       "city": "BEIJING",
       "name": "Daxing",
-      "country": "CN"
+      "country": "CN",
+      "lat": 39.5098,
+      "lon": 116.4106
     },
     {
       "code": "PVG",
       "city": "SHANGHAI",
       "name": "Pudong",
-      "country": "CN"
+      "country": "CN",
+      "lat": 31.1443,
+      "lon": 121.8083
     },
     {
       "code": "SHA",
       "city": "SHANGHAI",
       "name": "Hongqiao",
-      "country": "CN"
+      "country": "CN",
+      "lat": 31.1979,
+      "lon": 121.3363
     },
     {
       "code": "CAN",
       "city": "GUANGZHOU",
       "name": "Baiyun",
-      "country": "CN"
+      "country": "CN",
+      "lat": 23.3924,
+      "lon": 113.2988
     },
     {
       "code": "SZX",
       "city": "SHENZHEN",
       "name": "Bao'an",
-      "country": "CN"
+      "country": "CN",
+      "lat": 22.6393,
+      "lon": 113.8107
     },
     {
       "code": "TPE",
       "city": "TAIPEI",
       "name": "Taoyuan",
-      "country": "TW"
+      "country": "TW",
+      "lat": 25.0777,
+      "lon": 121.2328
     },
     {
       "code": "MNL",
       "city": "MANILA",
       "name": "Ninoy Aquino",
-      "country": "PH"
+      "country": "PH",
+      "lat": 14.5086,
+      "lon": 121.0198
     },
     {
       "code": "CGK",
       "city": "JAKARTA",
       "name": "Soekarno-Hatta",
-      "country": "ID"
+      "country": "ID",
+      "lat": -6.1256,
+      "lon": 106.6559
     },
     {
       "code": "SYD",
       "city": "SYDNEY",
       "name": "Kingsford Smith",
-      "country": "AU"
+      "country": "AU",
+      "lat": -33.9399,
+      "lon": 151.1753
     },
     {
       "code": "MEL",
       "city": "MELBOURNE",
       "name": "Tullamarine",
-      "country": "AU"
+      "country": "AU",
+      "lat": -37.669,
+      "lon": 144.841
     },
     {
       "code": "BNE",
       "city": "BRISBANE",
       "name": "Brisbane",
-      "country": "AU"
+      "country": "AU",
+      "lat": -27.3842,
+      "lon": 153.1175
     },
     {
       "code": "PER",
       "city": "PERTH",
       "name": "Perth",
-      "country": "AU"
+      "country": "AU",
+      "lat": -31.9403,
+      "lon": 115.9669
     },
     {
       "code": "AKL",
       "city": "AUCKLAND",
       "name": "Auckland",
-      "country": "NZ"
+      "country": "NZ",
+      "lat": -37.0082,
+      "lon": 174.785
     },
     {
       "code": "CHC",
       "city": "CHRISTCHURCH",
       "name": "Christchurch",
-      "country": "NZ"
+      "country": "NZ",
+      "lat": -43.4894,
+      "lon": 172.532
+    },
+    {
+      "code": "KWI",
+      "city": "KUWAIT CITY",
+      "name": "Kuwait International",
+      "country": "KW",
+      "lat": 29.2266,
+      "lon": 47.9689
+    },
+    {
+      "code": "MCT",
+      "city": "MUSCAT",
+      "name": "Muscat International",
+      "country": "OM",
+      "lat": 23.5933,
+      "lon": 58.2844
+    },
+    {
+      "code": "BAH",
+      "city": "MANAMA",
+      "name": "Bahrain International",
+      "country": "BH",
+      "lat": 26.2708,
+      "lon": 50.6336
     }
   ],
   "airlines": [
@@ -898,6 +1126,21 @@
       "code": "W6",
       "name": "Wizz Air",
       "numeric": "823"
+    },
+    {
+      "code": "KU",
+      "name": "Kuwait Airways",
+      "numeric": "229"
+    },
+    {
+      "code": "WY",
+      "name": "Oman Air",
+      "numeric": "910"
+    },
+    {
+      "code": "GF",
+      "name": "Gulf Air",
+      "numeric": "072"
     }
   ],
   "routes": [
@@ -96010,6 +96253,1096 @@
       "ZYL",
       "ZRH",
       "MU"
+    ],
+    [
+      "KWI",
+      "DOH",
+      "KU"
+    ],
+    [
+      "DOH",
+      "KWI",
+      "KU"
+    ],
+    [
+      "KWI",
+      "DOH",
+      "QR"
+    ],
+    [
+      "DOH",
+      "KWI",
+      "QR"
+    ],
+    [
+      "KWI",
+      "DXB",
+      "KU"
+    ],
+    [
+      "DXB",
+      "KWI",
+      "KU"
+    ],
+    [
+      "KWI",
+      "DXB",
+      "QR"
+    ],
+    [
+      "DXB",
+      "KWI",
+      "QR"
+    ],
+    [
+      "KWI",
+      "AUH",
+      "KU"
+    ],
+    [
+      "AUH",
+      "KWI",
+      "KU"
+    ],
+    [
+      "KWI",
+      "AUH",
+      "QR"
+    ],
+    [
+      "AUH",
+      "KWI",
+      "QR"
+    ],
+    [
+      "KWI",
+      "JED",
+      "KU"
+    ],
+    [
+      "JED",
+      "KWI",
+      "KU"
+    ],
+    [
+      "KWI",
+      "RUH",
+      "KU"
+    ],
+    [
+      "RUH",
+      "KWI",
+      "KU"
+    ],
+    [
+      "KWI",
+      "CAI",
+      "KU"
+    ],
+    [
+      "CAI",
+      "KWI",
+      "KU"
+    ],
+    [
+      "KWI",
+      "IST",
+      "KU"
+    ],
+    [
+      "IST",
+      "KWI",
+      "KU"
+    ],
+    [
+      "KWI",
+      "LHR",
+      "KU"
+    ],
+    [
+      "LHR",
+      "KWI",
+      "KU"
+    ],
+    [
+      "KWI",
+      "LHR",
+      "QR"
+    ],
+    [
+      "LHR",
+      "KWI",
+      "QR"
+    ],
+    [
+      "KWI",
+      "CDG",
+      "KU"
+    ],
+    [
+      "CDG",
+      "KWI",
+      "KU"
+    ],
+    [
+      "KWI",
+      "FRA",
+      "KU"
+    ],
+    [
+      "FRA",
+      "KWI",
+      "KU"
+    ],
+    [
+      "KWI",
+      "AMS",
+      "KU"
+    ],
+    [
+      "AMS",
+      "KWI",
+      "KU"
+    ],
+    [
+      "KWI",
+      "JFK",
+      "KU"
+    ],
+    [
+      "JFK",
+      "KWI",
+      "KU"
+    ],
+    [
+      "KWI",
+      "JFK",
+      "QR"
+    ],
+    [
+      "JFK",
+      "KWI",
+      "QR"
+    ],
+    [
+      "KWI",
+      "BOM",
+      "KU"
+    ],
+    [
+      "BOM",
+      "KWI",
+      "KU"
+    ],
+    [
+      "KWI",
+      "BOM",
+      "QR"
+    ],
+    [
+      "BOM",
+      "KWI",
+      "QR"
+    ],
+    [
+      "KWI",
+      "DEL",
+      "KU"
+    ],
+    [
+      "DEL",
+      "KWI",
+      "KU"
+    ],
+    [
+      "KWI",
+      "DEL",
+      "QR"
+    ],
+    [
+      "DEL",
+      "KWI",
+      "QR"
+    ],
+    [
+      "KWI",
+      "BKK",
+      "KU"
+    ],
+    [
+      "BKK",
+      "KWI",
+      "KU"
+    ],
+    [
+      "KWI",
+      "SIN",
+      "KU"
+    ],
+    [
+      "SIN",
+      "KWI",
+      "KU"
+    ],
+    [
+      "KWI",
+      "KUL",
+      "KU"
+    ],
+    [
+      "KUL",
+      "KWI",
+      "KU"
+    ],
+    [
+      "KWI",
+      "MNL",
+      "KU"
+    ],
+    [
+      "MNL",
+      "KWI",
+      "KU"
+    ],
+    [
+      "MCT",
+      "DOH",
+      "WY"
+    ],
+    [
+      "DOH",
+      "MCT",
+      "WY"
+    ],
+    [
+      "MCT",
+      "DOH",
+      "EK"
+    ],
+    [
+      "DOH",
+      "MCT",
+      "EK"
+    ],
+    [
+      "MCT",
+      "DXB",
+      "WY"
+    ],
+    [
+      "DXB",
+      "MCT",
+      "WY"
+    ],
+    [
+      "MCT",
+      "DXB",
+      "EK"
+    ],
+    [
+      "DXB",
+      "MCT",
+      "EK"
+    ],
+    [
+      "MCT",
+      "AUH",
+      "WY"
+    ],
+    [
+      "AUH",
+      "MCT",
+      "WY"
+    ],
+    [
+      "MCT",
+      "AUH",
+      "EK"
+    ],
+    [
+      "AUH",
+      "MCT",
+      "EK"
+    ],
+    [
+      "MCT",
+      "JED",
+      "WY"
+    ],
+    [
+      "JED",
+      "MCT",
+      "WY"
+    ],
+    [
+      "MCT",
+      "RUH",
+      "WY"
+    ],
+    [
+      "RUH",
+      "MCT",
+      "WY"
+    ],
+    [
+      "MCT",
+      "CAI",
+      "WY"
+    ],
+    [
+      "CAI",
+      "MCT",
+      "WY"
+    ],
+    [
+      "MCT",
+      "IST",
+      "WY"
+    ],
+    [
+      "IST",
+      "MCT",
+      "WY"
+    ],
+    [
+      "MCT",
+      "LHR",
+      "WY"
+    ],
+    [
+      "LHR",
+      "MCT",
+      "WY"
+    ],
+    [
+      "MCT",
+      "LHR",
+      "EK"
+    ],
+    [
+      "LHR",
+      "MCT",
+      "EK"
+    ],
+    [
+      "MCT",
+      "CDG",
+      "WY"
+    ],
+    [
+      "CDG",
+      "MCT",
+      "WY"
+    ],
+    [
+      "MCT",
+      "FRA",
+      "WY"
+    ],
+    [
+      "FRA",
+      "MCT",
+      "WY"
+    ],
+    [
+      "MCT",
+      "AMS",
+      "WY"
+    ],
+    [
+      "AMS",
+      "MCT",
+      "WY"
+    ],
+    [
+      "MCT",
+      "JFK",
+      "WY"
+    ],
+    [
+      "JFK",
+      "MCT",
+      "WY"
+    ],
+    [
+      "MCT",
+      "JFK",
+      "EK"
+    ],
+    [
+      "JFK",
+      "MCT",
+      "EK"
+    ],
+    [
+      "MCT",
+      "BOM",
+      "WY"
+    ],
+    [
+      "BOM",
+      "MCT",
+      "WY"
+    ],
+    [
+      "MCT",
+      "BOM",
+      "EK"
+    ],
+    [
+      "BOM",
+      "MCT",
+      "EK"
+    ],
+    [
+      "MCT",
+      "DEL",
+      "WY"
+    ],
+    [
+      "DEL",
+      "MCT",
+      "WY"
+    ],
+    [
+      "MCT",
+      "DEL",
+      "EK"
+    ],
+    [
+      "DEL",
+      "MCT",
+      "EK"
+    ],
+    [
+      "MCT",
+      "BKK",
+      "WY"
+    ],
+    [
+      "BKK",
+      "MCT",
+      "WY"
+    ],
+    [
+      "MCT",
+      "SIN",
+      "WY"
+    ],
+    [
+      "SIN",
+      "MCT",
+      "WY"
+    ],
+    [
+      "MCT",
+      "KUL",
+      "WY"
+    ],
+    [
+      "KUL",
+      "MCT",
+      "WY"
+    ],
+    [
+      "MCT",
+      "MNL",
+      "WY"
+    ],
+    [
+      "MNL",
+      "MCT",
+      "WY"
+    ],
+    [
+      "BAH",
+      "DOH",
+      "GF"
+    ],
+    [
+      "DOH",
+      "BAH",
+      "GF"
+    ],
+    [
+      "BAH",
+      "DOH",
+      "EY"
+    ],
+    [
+      "DOH",
+      "BAH",
+      "EY"
+    ],
+    [
+      "BAH",
+      "DXB",
+      "GF"
+    ],
+    [
+      "DXB",
+      "BAH",
+      "GF"
+    ],
+    [
+      "BAH",
+      "DXB",
+      "EY"
+    ],
+    [
+      "DXB",
+      "BAH",
+      "EY"
+    ],
+    [
+      "BAH",
+      "AUH",
+      "GF"
+    ],
+    [
+      "AUH",
+      "BAH",
+      "GF"
+    ],
+    [
+      "BAH",
+      "AUH",
+      "EY"
+    ],
+    [
+      "AUH",
+      "BAH",
+      "EY"
+    ],
+    [
+      "BAH",
+      "JED",
+      "GF"
+    ],
+    [
+      "JED",
+      "BAH",
+      "GF"
+    ],
+    [
+      "BAH",
+      "RUH",
+      "GF"
+    ],
+    [
+      "RUH",
+      "BAH",
+      "GF"
+    ],
+    [
+      "BAH",
+      "CAI",
+      "GF"
+    ],
+    [
+      "CAI",
+      "BAH",
+      "GF"
+    ],
+    [
+      "BAH",
+      "IST",
+      "GF"
+    ],
+    [
+      "IST",
+      "BAH",
+      "GF"
+    ],
+    [
+      "BAH",
+      "LHR",
+      "GF"
+    ],
+    [
+      "LHR",
+      "BAH",
+      "GF"
+    ],
+    [
+      "BAH",
+      "LHR",
+      "EY"
+    ],
+    [
+      "LHR",
+      "BAH",
+      "EY"
+    ],
+    [
+      "BAH",
+      "CDG",
+      "GF"
+    ],
+    [
+      "CDG",
+      "BAH",
+      "GF"
+    ],
+    [
+      "BAH",
+      "FRA",
+      "GF"
+    ],
+    [
+      "FRA",
+      "BAH",
+      "GF"
+    ],
+    [
+      "BAH",
+      "AMS",
+      "GF"
+    ],
+    [
+      "AMS",
+      "BAH",
+      "GF"
+    ],
+    [
+      "BAH",
+      "JFK",
+      "GF"
+    ],
+    [
+      "JFK",
+      "BAH",
+      "GF"
+    ],
+    [
+      "BAH",
+      "JFK",
+      "EY"
+    ],
+    [
+      "JFK",
+      "BAH",
+      "EY"
+    ],
+    [
+      "BAH",
+      "BOM",
+      "GF"
+    ],
+    [
+      "BOM",
+      "BAH",
+      "GF"
+    ],
+    [
+      "BAH",
+      "BOM",
+      "EY"
+    ],
+    [
+      "BOM",
+      "BAH",
+      "EY"
+    ],
+    [
+      "BAH",
+      "DEL",
+      "GF"
+    ],
+    [
+      "DEL",
+      "BAH",
+      "GF"
+    ],
+    [
+      "BAH",
+      "DEL",
+      "EY"
+    ],
+    [
+      "DEL",
+      "BAH",
+      "EY"
+    ],
+    [
+      "BAH",
+      "BKK",
+      "GF"
+    ],
+    [
+      "BKK",
+      "BAH",
+      "GF"
+    ],
+    [
+      "BAH",
+      "SIN",
+      "GF"
+    ],
+    [
+      "SIN",
+      "BAH",
+      "GF"
+    ],
+    [
+      "BAH",
+      "KUL",
+      "GF"
+    ],
+    [
+      "KUL",
+      "BAH",
+      "GF"
+    ],
+    [
+      "BAH",
+      "MNL",
+      "GF"
+    ],
+    [
+      "MNL",
+      "BAH",
+      "GF"
+    ],
+    [
+      "KWI",
+      "MCT",
+      "QR"
+    ],
+    [
+      "MCT",
+      "KWI",
+      "QR"
+    ],
+    [
+      "KWI",
+      "MCT",
+      "GF"
+    ],
+    [
+      "MCT",
+      "KWI",
+      "GF"
+    ],
+    [
+      "KWI",
+      "MCT",
+      "WY"
+    ],
+    [
+      "MCT",
+      "KWI",
+      "WY"
+    ],
+    [
+      "KWI",
+      "MCT",
+      "KU"
+    ],
+    [
+      "MCT",
+      "KWI",
+      "KU"
+    ],
+    [
+      "KWI",
+      "BAH",
+      "QR"
+    ],
+    [
+      "BAH",
+      "KWI",
+      "QR"
+    ],
+    [
+      "KWI",
+      "BAH",
+      "GF"
+    ],
+    [
+      "BAH",
+      "KWI",
+      "GF"
+    ],
+    [
+      "KWI",
+      "BAH",
+      "WY"
+    ],
+    [
+      "BAH",
+      "KWI",
+      "WY"
+    ],
+    [
+      "KWI",
+      "BAH",
+      "KU"
+    ],
+    [
+      "BAH",
+      "KWI",
+      "KU"
+    ],
+    [
+      "MCT",
+      "BAH",
+      "QR"
+    ],
+    [
+      "BAH",
+      "MCT",
+      "QR"
+    ],
+    [
+      "MCT",
+      "BAH",
+      "GF"
+    ],
+    [
+      "BAH",
+      "MCT",
+      "GF"
+    ],
+    [
+      "MCT",
+      "BAH",
+      "WY"
+    ],
+    [
+      "BAH",
+      "MCT",
+      "WY"
+    ],
+    [
+      "MCT",
+      "BAH",
+      "KU"
+    ],
+    [
+      "BAH",
+      "MCT",
+      "KU"
+    ],
+    [
+      "DOH",
+      "LHR",
+      "QR"
+    ],
+    [
+      "LHR",
+      "DOH",
+      "QR"
     ]
+  ],
+  "countries": [
+    {
+      "code": "GB",
+      "name": "UNITED KINGDOM"
+    },
+    {
+      "code": "FR",
+      "name": "FRANCE"
+    },
+    {
+      "code": "NL",
+      "name": "NETHERLANDS"
+    },
+    {
+      "code": "DE",
+      "name": "GERMANY"
+    },
+    {
+      "code": "ES",
+      "name": "SPAIN"
+    },
+    {
+      "code": "CH",
+      "name": "SWITZERLAND"
+    },
+    {
+      "code": "IT",
+      "name": "ITALY"
+    },
+    {
+      "code": "AT",
+      "name": "AUSTRIA"
+    },
+    {
+      "code": "BE",
+      "name": "BELGIUM"
+    },
+    {
+      "code": "PT",
+      "name": "PORTUGAL"
+    },
+    {
+      "code": "DK",
+      "name": "DENMARK"
+    },
+    {
+      "code": "SE",
+      "name": "SWEDEN"
+    },
+    {
+      "code": "NO",
+      "name": "NORWAY"
+    },
+    {
+      "code": "FI",
+      "name": "FINLAND"
+    },
+    {
+      "code": "GR",
+      "name": "GREECE"
+    },
+    {
+      "code": "TR",
+      "name": "TURKEY"
+    },
+    {
+      "code": "US",
+      "name": "UNITED STATES"
+    },
+    {
+      "code": "CA",
+      "name": "CANADA"
+    },
+    {
+      "code": "MX",
+      "name": "MEXICO"
+    },
+    {
+      "code": "BR",
+      "name": "BRAZIL"
+    },
+    {
+      "code": "AR",
+      "name": "ARGENTINA"
+    },
+    {
+      "code": "CL",
+      "name": "CHILE"
+    },
+    {
+      "code": "CO",
+      "name": "COLOMBIA"
+    },
+    {
+      "code": "PE",
+      "name": "PERU"
+    },
+    {
+      "code": "AE",
+      "name": "UNITED ARAB EMIRATES"
+    },
+    {
+      "code": "QA",
+      "name": "QATAR"
+    },
+    {
+      "code": "SA",
+      "name": "SAUDI ARABIA"
+    },
+    {
+      "code": "EG",
+      "name": "EGYPT"
+    },
+    {
+      "code": "ET",
+      "name": "ETHIOPIA"
+    },
+    {
+      "code": "KE",
+      "name": "KENYA"
+    },
+    {
+      "code": "NG",
+      "name": "NIGERIA"
+    },
+    {
+      "code": "ZA",
+      "name": "SOUTH AFRICA"
+    },
+    {
+      "code": "IN",
+      "name": "INDIA"
+    },
+    {
+      "code": "BD",
+      "name": "BANGLADESH"
+    },
+    {
+      "code": "PK",
+      "name": "PAKISTAN"
+    },
+    {
+      "code": "LK",
+      "name": "SRI LANKA"
+    },
+    {
+      "code": "NP",
+      "name": "NEPAL"
+    },
+    {
+      "code": "TH",
+      "name": "THAILAND"
+    },
+    {
+      "code": "SG",
+      "name": "SINGAPORE"
+    },
+    {
+      "code": "MY",
+      "name": "MALAYSIA"
+    },
+    {
+      "code": "HK",
+      "name": "HONG KONG"
+    },
+    {
+      "code": "JP",
+      "name": "JAPAN"
+    },
+    {
+      "code": "KR",
+      "name": "SOUTH KOREA"
+    },
+    {
+      "code": "CN",
+      "name": "CHINA"
+    },
+    {
+      "code": "TW",
+      "name": "TAIWAN"
+    },
+    {
+      "code": "PH",
+      "name": "PHILIPPINES"
+    },
+    {
+      "code": "ID",
+      "name": "INDONESIA"
+    },
+    {
+      "code": "AU",
+      "name": "AUSTRALIA"
+    },
+    {
+      "code": "NZ",
+      "name": "NEW ZEALAND"
+    },
+    {
+      "code": "KW",
+      "name": "KUWAIT"
+    },
+    {
+      "code": "OM",
+      "name": "OMAN"
+    },
+    {
+      "code": "BH",
+      "name": "BAHRAIN"
+    }
   ]
 }
