@@ -217,14 +217,14 @@ h3 { color: var(--text); font-size: 1.05rem; letter-spacing: 0; text-transform: 
 
 /* ---------- Footer ---------- */
 .site-footer { padding: 12px 0 10px; background: #080D0A; text-align: center; color: var(--muted); font-size: 0.8rem; border-top: 1px solid var(--line); }
-.site-footer .container { max-width: 600px; }
+.site-footer .container { max-width: 900px; }
 .footer-credit { margin: 0 0 2px; font-size: 0.78rem; color: var(--text); }
-.footer-credit a { color: var(--brand); font-weight: 600; }
-.footer-credit a:hover { text-decoration: underline; }
+.footer-credit a { color: #069C4F; font-weight: 600; }
+.footer-credit a:hover { color: #35E28C; text-decoration: underline; }
 .footer-sites { margin: 0 0 5px; font-size: 0.74rem; color: var(--muted); }
 .footer-sites a { color: var(--text); font-weight: 500; }
 .footer-sites a:hover { color: var(--brand); text-decoration: underline; }
-.footer-disclaimer { max-width: 540px; margin: 0 auto 4px; line-height: 1.35; font-size: 0.68rem; color: var(--muted); }
+.footer-disclaimer { max-width: 860px; margin: 0 auto 4px; line-height: 1.35; font-size: 0.68rem; color: var(--muted); }
 .footer-meta { margin: 0; font-size: 0.66rem; color: var(--muted); opacity: 0.85; }
 .footer-meta a { color: var(--muted); text-decoration: underline; text-underline-offset: 2px; }
 .footer-meta a:hover { color: var(--brand); }
