@@ -130,6 +130,85 @@ function buildElementList(pnr) {
   return items;
 }
 function pnrTstLatest(pnr) { return pnr.tst && pnr.tst.length ? pnr.tst[pnr.tst.length - 1] : null; }
+function baggageAllowanceFor(cabin) {
+  return ["F", "J", "C", "D"].includes(cabin) ? "2PC (32KG EACH)" : "1PC (23KG)";
+}
+function buildTicketPrintHTML(pnr) {
+  const airline = AMX.state.world.airlines.find(a => a.code === pnr.validatingCarrier);
+  const carrierName = airline ? airline.name : (pnr.validatingCarrier || "VALIDATING CARRIER NOT SET");
+  const paxRows = pnr.passengers.map((p, i) => {
+    const ticket = pnr.tickets.find(t => t.passengerIndex === i);
+    return `<tr><td>${p.name}</td><td>${p.type}</td><td>${ticket ? ticket.number + (ticket.voided ? " (VOID)" : "") : "NOT ISSUED"}</td></tr>`;
+  }).join("");
+  const segRows = pnr.segments.map((s, i) => `
+    <tr>
+      <td>${i + 1}</td><td>${s.date}</td><td>${s.carrier}${s.flight}</td><td>${s.cabin || ""}</td>
+      <td>${s.from} &rarr; ${s.to}</td><td>${s.dep}-${s.arr}</td><td>${s.status}</td>
+      <td>${baggageAllowanceFor(s.cabin)}</td>
+    </tr>`).join("");
+  const fare = pnr.fare;
+  const fareRows = fare ? `
+    <tr><td>Base Fare</td><td>${fare.currency} ${fare.base.toFixed(2)}</td></tr>
+    <tr><td>Taxes &amp; Fees</td><td>${fare.currency} ${fare.taxes.toFixed(2)}</td></tr>
+    ${pnr.markup ? `<tr><td>Agency Service Fee</td><td>${fare.currency} ${markupAmount(pnr).toFixed(2)}</td></tr>` : ""}
+    ${(pnr.ancillaries || []).map(a => `<tr><td>${a.text}</td><td>${fare.currency} ${a.price.toFixed(2)}</td></tr>`).join("")}
+    <tr class="total"><td>Total</td><td>${fare.currency} ${displayTotal(pnr).toFixed(2)}</td></tr>
+  ` : `<tr><td colspan="2">Not priced</td></tr>`;
+  const fop = pnr.formOfPayment
+    ? (pnr.formOfPayment.type === "CC" ? `${pnr.formOfPayment.card} ****${pnr.formOfPayment.number.slice(-4)}` : pnr.formOfPayment.type)
+    : "NOT ON FILE";
+
+  return `<!doctype html><html><head><meta charset="utf-8"><title>E-Ticket ${pnr.recordLocator || ""}</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: 'Courier New', Courier, monospace; background: #fff; color: #2B2620; margin: 0; padding: 32px; }
+  .receipt { max-width: 760px; margin: 0 auto; border: 2px solid #2B2620; padding: 28px 32px; }
+  .r-head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px dashed #2B2620; padding-bottom: 16px; margin-bottom: 16px; }
+  .r-head h1 { font-size: 1.15rem; letter-spacing: 0.06em; margin: 0 0 6px; text-transform: uppercase; }
+  .r-head .sub { font-size: 0.75rem; color: #5b5346; }
+  .r-locator { text-align: right; }
+  .r-locator .code { font-size: 1.7rem; font-weight: bold; letter-spacing: 0.1em; }
+  h2.r-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em; color: #5b5346; margin: 20px 0 8px; border-bottom: 1px solid #cfc6b3; padding-bottom: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-bottom: 6px; }
+  table td, table th { padding: 6px 4px; text-align: left; border-bottom: 1px dotted #cfc6b3; }
+  table.fare td:last-child { text-align: right; }
+  table.fare tr.total td { border-top: 2px solid #2B2620; border-bottom: none; font-weight: bold; padding-top: 8px; }
+  .r-foot { margin-top: 24px; text-align: center; }
+  .barcode { height: 34px; background: repeating-linear-gradient(90deg, #2B2620 0 2px, transparent 2px 5px); margin: 0 auto 10px; width: 80%; }
+  .disclaimer { font-size: 0.68rem; color: #5b5346; line-height: 1.5; }
+  @media print { body { padding: 0; } .receipt { border: none; max-width: none; } }
+</style></head>
+<body>
+  <div class="receipt">
+    <div class="r-head">
+      <div>
+        <h1>${carrierName}</h1>
+        <div class="sub">Electronic Ticket / Itinerary Receipt</div>
+        <div class="sub">Issued: ${fmt.nowDate()} &middot; Office: ${AMX.state.office} &middot; Agent: ${AMX.state.agent}</div>
+      </div>
+      <div class="r-locator">
+        <div class="sub">Booking Reference</div>
+        <div class="code">${pnr.recordLocator || "UNSAVED"}</div>
+      </div>
+    </div>
+
+    <h2 class="r-title">Passengers &amp; Tickets</h2>
+    <table><thead><tr><th>Name</th><th>Type</th><th>Ticket Number</th></tr></thead><tbody>${paxRows || '<tr><td colspan="3">No passengers</td></tr>'}</tbody></table>
+
+    <h2 class="r-title">Flight Itinerary</h2>
+    <table><thead><tr><th>#</th><th>Date</th><th>Flight</th><th>Cl</th><th>Route</th><th>Time</th><th>Status</th><th>Baggage</th></tr></thead><tbody>${segRows || '<tr><td colspan="8">No segments</td></tr>'}</tbody></table>
+
+    <h2 class="r-title">Fare Breakdown</h2>
+    <table class="fare"><tbody>${fareRows}</tbody></table>
+    <div class="sub">Form of Payment: ${fop}</div>
+
+    <div class="r-foot">
+      <div class="barcode"></div>
+      <div class="disclaimer">This receipt is not a boarding pass. Please check in with your carrier and present valid identification.<br/>Generated by DonaTrainer &mdash; an educational Amadeus GDS simulator by Donabil SAS. Not affiliated with any GDS or airline.</div>
+    </div>
+  </div>
+</body></html>`;
+}
 function markupAmount(pnr) {
   if (!pnr.markup || !pnr.fare) return 0;
   return pnr.markup.type === "A" ? pnr.markup.value : pnr.fare.total * (pnr.markup.value / 100);
@@ -803,10 +882,10 @@ const commands = {
   "ITR/P": () => {
     const pnr = AMX.state.pnr;
     if (!pnr) return writeLine("NO ACTIVE PNR TO PRINT", "err");
-    const html = renderItineraryHTML(pnr);
-    writeHTML(html);
+    writeHTML(renderItineraryHTML(pnr));
     const printWindow = window.open('', '_blank');
-    printWindow.document.write(`<!doctype html><html><head><title>Itinerary</title><link rel="stylesheet" href="../assets/css/base.css"><link rel="stylesheet" href="../assets/css/app.css"><style>body{background:#fff!important;color:#000!important;}</style></head><body>${html}</body></html>`);
+    if (!printWindow) return writeLine("PRINT BLOCKED BY THE BROWSER - ALLOW POP-UPS FOR THIS SITE AND TRY AGAIN", "err");
+    printWindow.document.write(buildTicketPrintHTML(pnr));
     printWindow.document.close();
     printWindow.focus();
     setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
@@ -891,7 +970,7 @@ const commands = {
   },
   ST: (arg) => {
     const pnr = ensurePNR();
-    const m = arg.toUpperCase().match(/^(\d+[A-F])\/P(\d+)$/);
+    const m = arg.toUpperCase().match(/^\/?(\d+[A-F])\/P(\d+)$/);
     if (!m) return writeLine("FORMAT: ST/<SEAT>/P<PAX#>", "err");
     const [, seat, paxIdx] = m;
     if (!pnr.passengers[paxIdx - 1]) return writeLine("PASSENGER NOT FOUND", "err");
@@ -1085,13 +1164,37 @@ const commands = {
 
   // Training & Utility
   TRAIN: (arg) => {
-    if (arg.toUpperCase() === 'START') {
-      AMX.state.training.active = true;
-      AMX.state.training.scenario = scenarios[0];
-      AMX.state.training.step = 0;
-      writeLine(AMX.state.training.scenario.description, "scenario");
-      writeLine(AMX.state.training.scenario.steps[0].instruction, "scenario");
+    const a = arg.trim().toUpperCase();
+    if (a === "STOP" || a === "EXIT") {
+      if (!AMX.state.training.active) return writeLine("NO ACTIVE TRAINING SCENARIO", "err");
+      AMX.state.training.active = false;
+      AMX.state.training.scenario = null;
+      return writeLine("TRAINING SCENARIO ENDED.", "scenario");
     }
+    let idx = null;
+    if (a === "START") idx = 0;
+    else if (/^\d+$/.test(a)) idx = parseInt(a, 10) - 1;
+
+    if (idx === null) {
+      writeLine("AVAILABLE SCENARIOS - REAL CUSTOMER CALLS, START TO FINISH:", "scenario");
+      scenarios.forEach((sc, i) => writeLine(`${i + 1}. [${sc.level}] ${sc.title}`, "hint"));
+      writeLine("TYPE: TRAIN <NUMBER> TO BEGIN, HINT IF YOU'RE STUCK, TRAIN STOP TO EXIT EARLY.", "hint");
+      return;
+    }
+    const scenario = scenarios[idx];
+    if (!scenario) return writeLine("SCENARIO NOT FOUND - TYPE TRAIN FOR THE LIST", "err");
+    if (typeof scenario.setup === "function") scenario.setup();
+    AMX.state.training.active = true;
+    AMX.state.training.scenario = scenario;
+    AMX.state.training.step = 0;
+    writeLine(`SCENARIO ${idx + 1}: ${scenario.title} [${scenario.level}]`, "scenario");
+    writeLine(scenario.brief, "scenario");
+    writeLine(scenario.steps[0].instruction, "scenario");
+  },
+  HINT: () => {
+    if (!AMX.state.training.active) return writeLine("NO ACTIVE TRAINING SCENARIO", "err");
+    const step = AMX.state.training.scenario.steps[AMX.state.training.step];
+    writeLine(`HINT: ${step.hint || "Re-read the instruction above."}`, "scenario");
   },
   HE: (arg) => {
     const topic = arg.trim().toUpperCase();
@@ -1108,19 +1211,142 @@ const commands = {
 };
 
 const scenarios = [
-    {
-        name: "Basic Booking",
-        description: "SCENARIO 1: A client wants a one-way flight.",
-        steps: [
-            { instruction: "Find a flight from LHR to CDG for tomorrow.", validate: (cmd) => cmd.startsWith("AN") },
-            { instruction: "Book one seat in economy.", validate: (cmd) => cmd.startsWith("SS") },
-            { instruction: "Add the passenger name: SMITH/JOHN MR", validate: (cmd) => cmd.includes("SMITH/JOHN") },
-            { instruction: "Save the PNR.", validate: (cmd) => cmd === "ER" },
-        ]
-    }
+  {
+    title: "The One-Way Request",
+    level: "BASIC",
+    brief: '"Good morning — I need a one-way ticket from London to Paris, tomorrow, economy class." (Walk-in customer, paying cash)',
+    steps: [
+      { instruction: "Check availability from LHR to CDG for tomorrow.", hint: "AN<DDMMM>LHRCDG — e.g. AN20DECLHRCDG.", validate: (cmd) => cmd.startsWith("AN") },
+      { instruction: "Sell one seat in economy (Y) from the first line shown.", hint: "SS1Y1", validate: (cmd) => cmd.startsWith("SS") },
+      { instruction: "Add the passenger's name: Smith, John (Mr).", hint: "NM1SMITH/JOHN MR", validate: (cmd, full) => cmd.startsWith("NM") && full.includes("SMITH/JOHN") },
+      { instruction: "Add a contact phone number.", hint: "AP 33-123456789", validate: (cmd) => cmd.startsWith("AP") },
+      { instruction: "Confirm the ticketing arrangement.", hint: "TKOK", validate: (cmd) => cmd === "TKOK" },
+      { instruction: "Sign the booking as received from the customer.", hint: "RF <YOUR NAME>", validate: (cmd) => cmd.startsWith("RF") },
+      { instruction: "Price the itinerary.", hint: "FXP", validate: (cmd) => cmd.startsWith("FXP") || cmd.startsWith("FXB") },
+      { instruction: "Set the validating carrier from the availability display.", hint: "FV <CARRIER CODE>", validate: (cmd) => cmd.startsWith("FV") },
+      { instruction: "Take payment — the customer is paying cash.", hint: "FP CASH", validate: (cmd, full) => cmd.startsWith("FP") && full.includes("CASH") },
+      { instruction: "Issue the ticket.", hint: "TTP", validate: (cmd) => cmd.startsWith("TTP") },
+      { instruction: "Save the PNR.", hint: "ER", validate: (cmd) => cmd === "ER" },
+    ],
+  },
+  {
+    title: "The Family With a Child",
+    level: "BASIC",
+    brief: '"I need two seats from Doha to Mumbai and back for me and my 8-year-old son, economy, for the 20th." (Repeat customer)',
+    steps: [
+      { instruction: "Check round-trip availability from DOH to BOM.", hint: "AN<DDMMM>DOHBOM/R<DDMMM>", validate: (cmd, full) => cmd.startsWith("AN") && full.includes("/R") },
+      { instruction: "Sell 2 seats in economy each way from line 1, in one entry.", hint: "SS2Y1*2Y1", validate: (cmd, full) => cmd.startsWith("SS") && full.includes("*") },
+      { instruction: "Add the adult passenger's name.", hint: "NM1ALI/FATIMA MRS", validate: (cmd, full) => cmd.startsWith("NM") && !full.includes("CHD") },
+      { instruction: "Add the child, with his date of birth.", hint: "NM1ALI/YOUSEF MSTR(CHD/10JUN17)", validate: (cmd, full) => cmd.startsWith("NM") && full.includes("CHD") },
+      { instruction: "Add a phone contact.", hint: "AP 33-123456789", validate: (cmd) => cmd.startsWith("AP") },
+      { instruction: "Add an email contact.", hint: "APE parent@example.com", validate: (cmd) => cmd.startsWith("APE") },
+      { instruction: "Confirm the ticketing arrangement.", hint: "TKOK", validate: (cmd) => cmd === "TKOK" },
+      { instruction: "Sign the booking.", hint: "RF <YOUR NAME>", validate: (cmd) => cmd.startsWith("RF") },
+      { instruction: "Price the itinerary — the child fare applies automatically.", hint: "FXP", validate: (cmd) => cmd.startsWith("FXP") || cmd.startsWith("FXB") },
+      { instruction: "Set the validating carrier.", hint: "FV <CARRIER CODE>", validate: (cmd) => cmd.startsWith("FV") },
+      { instruction: "Take payment.", hint: "FP CASH or FP CC VI 4111111111111111/1228", validate: (cmd) => cmd.startsWith("FP") },
+      { instruction: "Issue the tickets for both passengers.", hint: "TTP/PAX", validate: (cmd) => cmd.startsWith("TTP") },
+      { instruction: "Save the PNR.", hint: "ER", validate: (cmd) => cmd === "ER" },
+    ],
+  },
+  {
+    title: "The Budget Hunter",
+    level: "INTERMEDIATE",
+    brief: '"What\'s the cheapest way to get to Bangkok? I don\'t care about the airline, and I\'ll need to check a bag."',
+    steps: [
+      { instruction: "Check fares to BKK before booking anything.", hint: "FQD<FROM>BKK", validate: (cmd) => cmd.startsWith("FQD") },
+      { instruction: "Check availability once you've picked a date.", hint: "AN<DDMMM><FROM>BKK", validate: (cmd) => cmd.startsWith("AN") },
+      { instruction: "Sell one seat in the lowest class shown.", hint: "SS1<CLASS>1", validate: (cmd) => cmd.startsWith("SS") },
+      { instruction: "Add the passenger's name.", hint: "NM1DOE/JANE MS", validate: (cmd) => cmd.startsWith("NM") },
+      { instruction: "Add a contact.", hint: "AP 33-123456789", validate: (cmd) => cmd.startsWith("AP") },
+      { instruction: "Confirm the ticketing arrangement.", hint: "TKOK", validate: (cmd) => cmd === "TKOK" },
+      { instruction: "Sign the booking.", hint: "RF <YOUR NAME>", validate: (cmd) => cmd.startsWith("RF") },
+      { instruction: "Find and store the lowest fare.", hint: "FXR to preview, then FXB to store it", validate: (cmd) => cmd.startsWith("FXR") || cmd.startsWith("FXB") },
+      { instruction: "Add a checked bag — the customer needs one.", hint: "FXA CHECKED BAG 35", validate: (cmd) => cmd.startsWith("FXA") || cmd.startsWith("FXK") },
+      { instruction: "Set the validating carrier.", hint: "FV <CARRIER CODE>", validate: (cmd) => cmd.startsWith("FV") },
+      { instruction: "Take payment by card.", hint: "FP CC VI 4111111111111111/1228", validate: (cmd, full) => cmd.startsWith("FP") && full.includes("CC") },
+      { instruction: "Issue the ticket.", hint: "TTP", validate: (cmd) => cmd.startsWith("TTP") },
+      { instruction: "Save the PNR.", hint: "ER", validate: (cmd) => cmd === "ER" },
+    ],
+  },
+  {
+    title: "The Same-Day Change",
+    level: "INTERMEDIATE",
+    brief: '"I need to fly out today instead — can you move my booking to an earlier flight and grab me a window seat?"',
+    steps: [
+      { instruction: "First, put the original booking on file: check availability anywhere.", hint: "AN<DDMMM><FROM><TO>", validate: (cmd) => cmd.startsWith("AN") },
+      { instruction: "Sell one seat in economy.", hint: "SS1Y1", validate: (cmd) => cmd.startsWith("SS") },
+      { instruction: "Add the passenger's name.", hint: "NM1BROWN/ALEX MR", validate: (cmd) => cmd.startsWith("NM") },
+      { instruction: "Save the original booking.", hint: "ER", validate: (cmd) => cmd === "ER" },
+      { instruction: "Now the change: rebook segment 1 to a different class or date.", hint: "SBC1 (class) or SB<DDMMM>1 (date)", validate: (cmd) => cmd.startsWith("SB") },
+      { instruction: "View the seat map for that segment.", hint: "SM1", validate: (cmd) => cmd.startsWith("SM") },
+      { instruction: "Assign a window seat (A or F) to the passenger.", hint: "ST/1A/P1", validate: (cmd) => cmd.startsWith("ST") },
+      { instruction: "Save the updated booking.", hint: "ER", validate: (cmd) => cmd === "ER" },
+    ],
+  },
+  {
+    title: "The Group Split",
+    level: "ADVANCED",
+    brief: '"Three of us are flying together to Cape Town, but my colleague\'s company is paying separately — can you split his ticket out?"',
+    steps: [
+      { instruction: "Check availability to CPT.", hint: "AN<DDMMM><FROM>CPT", validate: (cmd) => cmd.startsWith("AN") },
+      { instruction: "Sell 3 seats from the same line.", hint: "SS3Y1", validate: (cmd) => cmd.startsWith("SS") },
+      { instruction: "Add passenger 1's name.", hint: "NM1KHAN/OMAR MR", validate: (cmd) => cmd.startsWith("NM") },
+      { instruction: "Add passenger 2's name.", hint: "NM1KHAN/SARA MRS", validate: (cmd) => cmd.startsWith("NM") },
+      { instruction: "Add passenger 3's name — your colleague.", hint: "NM1REED/TOM MR", validate: (cmd) => cmd.startsWith("NM") },
+      { instruction: "Add a contact.", hint: "AP 33-123456789", validate: (cmd) => cmd.startsWith("AP") },
+      { instruction: "Confirm the ticketing arrangement.", hint: "TKOK", validate: (cmd) => cmd === "TKOK" },
+      { instruction: "Sign the booking.", hint: "RF <YOUR NAME>", validate: (cmd) => cmd.startsWith("RF") },
+      { instruction: "Save the group PNR first.", hint: "ER", validate: (cmd) => cmd === "ER" },
+      { instruction: "Split your colleague (passenger 3) into his own PNR.", hint: "SP 3", validate: (cmd) => cmd.startsWith("SP") },
+      { instruction: "Apply a small agency service fee to his booking.", hint: "FCM-A15", validate: (cmd) => cmd.startsWith("FCM") },
+      { instruction: "Price his new PNR.", hint: "FXP", validate: (cmd) => cmd.startsWith("FXP") || cmd.startsWith("FXB") },
+      { instruction: "Set the validating carrier.", hint: "FV <CARRIER CODE>", validate: (cmd) => cmd.startsWith("FV") },
+      { instruction: "Take his payment.", hint: "FP INV", validate: (cmd) => cmd.startsWith("FP") },
+      { instruction: "Issue his ticket.", hint: "TTP", validate: (cmd) => cmd.startsWith("TTP") },
+      { instruction: "Save his split booking.", hint: "ER", validate: (cmd) => cmd === "ER" },
+    ],
+  },
+  {
+    title: "The Schedule-Change Call",
+    level: "ADVANCED",
+    brief: '"Hi, I got an email saying my flight time changed? I don\'t really understand it — can you tell me what\'s new and fix my seat?" (Her PNR is already on queue 5, waiting for you.)',
+    setup: () => {
+      const demo = createEmptyPNR();
+      demo.passengers = [{ name: "HARRIS/EMMA MRS", type: "ADT" }];
+      demo.segments = [{ date: "22DEC", from: "DOH", to: "SIN", carrier: "QR", flight: "938", dep: "02:15", arr: "13:40", classes: "Y5", cabin: "Y", status: "SC", seats: [] }];
+      demo.contacts = { email: "emma.harris@example.com" };
+      demo.recordLocator = "TRNSC1";
+      demo.history.push("SCHEDULE CHANGE ON SEGMENT 1 (QR938)");
+      savePNR(demo);
+      const q = ensureQueue("5");
+      if (!q.pnrs.includes("TRNSC1")) q.pnrs.push("TRNSC1");
+    },
+    steps: [
+      { instruction: "Open queue 5 to see who's waiting.", hint: "QT5", validate: (cmd) => cmd.startsWith("QT") },
+      { instruction: "Action the PNR at the top of the queue.", hint: "QN", validate: (cmd) => cmd === "QN" },
+      { instruction: "Check the PNR's history to see exactly what changed.", hint: "RH", validate: (cmd) => cmd === "RH" },
+      { instruction: "Rebook the affected segment to a workable time or class.", hint: "SBC1 or SB<DDMMM>1", validate: (cmd) => cmd.startsWith("SB") },
+      { instruction: "View the seat map.", hint: "SM1", validate: (cmd) => cmd.startsWith("SM") },
+      { instruction: "Reassign her seat.", hint: "ST/12A/P1", validate: (cmd) => cmd.startsWith("ST") },
+      { instruction: "Save the updated booking.", hint: "ER", validate: (cmd) => cmd === "ER" },
+    ],
+  },
 ];
 
 // --- BOOT & UI WIRING ---
+function dispatchCommand(s, verb) {
+    const commandKeys = Object.keys(commands).sort((a, b) => b.length - a.length);
+    const action = commandKeys.find(key => verb.startsWith(key));
+
+    if (action) {
+        const effectiveArg = s.slice(action.length).trim();
+        commands[action](effectiveArg);
+    } else {
+        writeLine("UNKNOWN COMMAND", "err");
+    }
+}
+
 function exec(raw) {
     const s = String(raw || "").trim();
     if (!s) return;
@@ -1131,37 +1357,37 @@ function exec(raw) {
     const sp = s.split(/\s+/);
     const verb = sp[0].toUpperCase();
 
+    // TRAIN and HINT are meta-commands: they always run directly, even mid-scenario.
+    if (verb.startsWith("TRAIN") || verb === "HINT") {
+        return dispatchCommand(s, verb);
+    }
+
     if (AMX.state.training.active) {
         const step = AMX.state.training.scenario.steps[AMX.state.training.step];
-        if (step.validate(verb)) {
+        const passed = step.validate(verb, s.toUpperCase());
+        dispatchCommand(s, verb); // the command actually runs, so the PNR/state stays real
+        if (passed) {
             AMX.state.training.step++;
             if (AMX.state.training.step >= AMX.state.training.scenario.steps.length) {
-                writeLine("SCENARIO COMPLETE!", "ok");
+                writeLine("SCENARIO COMPLETE — nicely handled. Type TRAIN for another.", "scenario");
                 AMX.state.training.active = false;
+                AMX.state.training.scenario = null;
             } else {
-                writeLine("Correct! Next step:", "ok");
+                writeLine("Correct — next:", "scenario");
                 writeLine(AMX.state.training.scenario.steps[AMX.state.training.step].instruction, "scenario");
             }
         } else {
-            writeLine("Incorrect command for this step. Please try again.", "err");
+            writeLine("That doesn't cover what this step needs yet. Type HINT if you're stuck, or TRAIN STOP to exit.", "scenario");
         }
     } else {
-        const commandKeys = Object.keys(commands).sort((a, b) => b.length - a.length);
-        const action = commandKeys.find(key => verb.startsWith(key));
-
-        if (action) {
-            const effectiveArg = s.slice(action.length).trim();
-            commands[action](effectiveArg);
-        } else {
-            writeLine("UNKNOWN COMMAND", "err");
-        }
+        dispatchCommand(s, verb);
     }
 }
 
 function bindUI() {
   const input = $("commandInput");
   const enterBtn = $("btnEnter");
-  $("btnTrain").addEventListener("click", () => exec("TRAIN START"));
+  $("btnTrain")?.addEventListener("click", () => exec("TRAIN"));
 
   const processInput = () => { if (input) { exec(input.value); input.value = ""; input.focus(); } };
   enterBtn.addEventListener("click", processInput);

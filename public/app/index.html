@@ -10,61 +10,151 @@
 </head>
 <body class="no-context-menu">
 
-  <!-- Top Bar -->
-  <header class="amx-topbar">
-    <div class="amx-wrap">
-      <a href="../index.html" class="amx-brand">
-        <img src="../assets/img/logo.svg" alt="DonaTrainer Logo" />
-      </a>
-      <div class="amx-context">
-        <span id="amxClockDate">-- --- ----</span>
-        <span id="amxClockTime">--:--:--</span>
-        <span class="divider">|</span>
-        <span>Office: <strong id="amxOffice">STRASBOURG/FR</strong></span>
-        <span class="divider">|</span>
-        <span>Agent: <strong id="amxAgent">Donatek</strong></span>
-        <span class="divider">|</span>
-        <span>User: <strong>Student</strong></span>
+  <div class="amx-shell">
+    <!-- Collapsible Sidebar -->
+    <aside class="amx-sidebar" id="amxSidebar">
+      <div class="amx-sidebar-top">
+        <a href="../index.html" class="amx-side-logo">
+          <img src="../assets/img/logo.svg" alt="DonaTrainer" />
+        </a>
+        <button id="btnSidebarToggle" class="amx-side-toggle" title="Collapse sidebar" aria-label="Toggle sidebar">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+        </button>
       </div>
-      <div class="amx-actions">
-        <button id="btnTrain" class="amx-btn secondary">Scenario Training</button>
-        <a href="../guide/index.html" class="amx-nav-link">Handbook</a>
-        <a href="../index.html" class="amx-nav-link">Home</a>
-        <a href="https://donabil.com" target="_blank" rel="noopener" class="amx-nav-link">Donabil</a>
-        <a href="https://checkout.revolut.com/pay/454a3ea2-98ae-4c22-96a3-b9cd63a133e9" target="_blank" rel="noopener" class="amx-nav-link">❤️ Support</a>
-      </div>
-    </div>
-  </header>
 
-  <!-- Main Content -->
-  <main class="amx-main">
-    <section class="amx-panel">
-      <div class="hd">
-        <span>Training Mode · EDUCATIONAL USE ONLY</span>
+      <nav class="amx-side-nav">
+        <button id="btnTrain" class="amx-side-link" title="Scenario Training">
+          <span class="icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg></span>
+          <span class="label">Scenario Training</span>
+        </button>
+        <a href="../guide/index.html" class="amx-side-link" title="Handbook">
+          <span class="icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5v-15Z"/><path d="M20 18H6.5A2.5 2.5 0 0 0 4 20.5"/></svg></span>
+          <span class="label">Handbook</span>
+        </a>
+        <a href="../index.html" class="amx-side-link" title="Home">
+          <span class="icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg></span>
+          <span class="label">Home</span>
+        </a>
+        <div class="amx-side-divider"></div>
+        <a href="https://donatek.fr" target="_blank" rel="noopener" class="amx-side-link" title="Donatek.fr">
+          <span class="icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="9" width="16" height="11" rx="1"/><path d="M9 9V6a3 3 0 0 1 6 0v3"/></svg></span>
+          <span class="label">Donatek</span>
+        </a>
+        <a href="https://donabil.com" target="_blank" rel="noopener" class="amx-side-link" title="Donabil.com">
+          <span class="icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="10" height="18"/><rect x="14" y="9" width="6" height="12"/><path d="M7 7h1M7 11h1M7 15h1"/></svg></span>
+          <span class="label">Donabil</span>
+        </a>
+        <a href="https://checkout.revolut.com/pay/454a3ea2-98ae-4c22-96a3-b9cd63a133e9" target="_blank" rel="noopener" class="amx-side-link" title="Support the project">
+          <span class="icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-4.5-9.5-9A5.5 5.5 0 0 1 12 5.5 5.5 5.5 0 0 1 21.5 12c-2.5 4.5-9.5 9-9.5 9Z"/></svg></span>
+          <span class="label">Support</span>
+        </a>
+      </nav>
+
+      <div class="amx-side-bottom">
+        <button id="btnExit" class="amx-side-link danger" title="Exit Simulator">
+          <span class="icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg></span>
+          <span class="label">Exit Simulator</span>
+        </button>
       </div>
-      <div class="bd">
-        <div id="output" aria-live="polite"></div>
-        <div class="amx-cli">
-          <input id="commandInput" class="amx-input" placeholder="Enter Amadeus command..." />
-          <button id="btnEnter" class="amx-btn primary">Enter</button>
+    </aside>
+
+    <div class="amx-backdrop" id="amxBackdrop"></div>
+
+    <!-- Main Column -->
+    <div class="amx-col">
+      <div class="amx-env-ribbon">TRAINING ENVIRONMENT — NOT CONNECTED TO ANY LIVE GDS</div>
+
+      <header class="amx-topbar">
+        <div class="amx-wrap">
+          <button id="btnSidebarToggleMobile" class="amx-mobile-menu-btn" aria-label="Open menu">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+          </button>
+          <div class="amx-context">
+            <span id="amxClockDate">-- --- ----</span>
+            <span id="amxClockTime">--:--:--</span>
+            <span class="divider">|</span>
+            <span>Office: <strong id="amxOffice">STRASBOURG/FR</strong></span>
+            <span class="divider">|</span>
+            <span>Agent: <strong id="amxAgent">Donatek</strong></span>
+            <span class="divider">|</span>
+            <span>User: <strong>Student</strong></span>
+          </div>
         </div>
-      </div>
-    </section>
-  </main>
+      </header>
 
-  <!-- Footer -->
-  <footer class="site-footer">
-    <div class="container">
-      <p>© <span id="year"></span> DonaTrainer (Donatek / Donabil SAS). Educational use only.</p>
-      <p class="footer-link"><a href="https://donabil.com" target="_blank" rel="noopener">donabil.com</a></p>
+      <!-- Main Content -->
+      <main class="amx-main">
+        <section class="amx-panel">
+          <div class="hd">
+            <span>Training Mode · EDUCATIONAL USE ONLY</span>
+          </div>
+          <div class="bd">
+            <div id="output" aria-live="polite"></div>
+            <div class="amx-cli">
+              <input id="commandInput" class="amx-input" placeholder="Enter Amadeus command..." />
+              <button id="btnEnter" class="amx-btn primary">Enter</button>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <!-- Footer -->
+      <footer class="site-footer">
+        <div class="container">
+          <div class="footer-credits">
+            <a class="credit-chip" href="https://www.linkedin.com/in/ma-kahar/" target="_blank" rel="noopener">
+              <span class="li-badge">in</span> Mohammed Abdul Kahar
+            </a>
+            <a class="credit-chip" href="https://www.linkedin.com/in/muhammad-ali-84280a33a/" target="_blank" rel="noopener">
+              <span class="li-badge">in</span> Muhammad Ali
+            </a>
+            <a class="credit-chip" href="https://donatek.fr" target="_blank" rel="noopener">donatek.fr</a>
+            <a class="credit-chip" href="https://donabil.com" target="_blank" rel="noopener">donabil.com</a>
+          </div>
+          <p>© <span id="year"></span> DonaTrainer (Donatek / Donabil SAS). Educational use only.</p>
+        </div>
+      </footer>
     </div>
-  </footer>
+  </div>
 
   <script src="../assets/js/app.js"></script>
   <script>
     document.getElementById("year").textContent = new Date().getFullYear();
     document.addEventListener("contextmenu", e => {
       if (document.body.classList.contains("no-context-menu")) e.preventDefault();
+    });
+
+    // --- Sidebar collapse / mobile drawer ---
+    const sidebar = document.getElementById("amxSidebar");
+    const backdrop = document.getElementById("amxBackdrop");
+    const toggleBtn = document.getElementById("btnSidebarToggle");
+    const isMobile = () => window.matchMedia("(max-width: 900px)").matches;
+
+    if (!isMobile() && localStorage.getItem("amx_sidebar_collapsed") === "1") {
+      sidebar.classList.add("collapsed");
+    }
+
+    function toggleSidebar() {
+      if (isMobile()) {
+        const open = sidebar.classList.toggle("mobile-open");
+        backdrop.classList.toggle("show", open);
+      } else {
+        const collapsed = sidebar.classList.toggle("collapsed");
+        localStorage.setItem("amx_sidebar_collapsed", collapsed ? "1" : "0");
+      }
+    }
+    toggleBtn.addEventListener("click", toggleSidebar);
+    document.getElementById("btnSidebarToggleMobile").addEventListener("click", toggleSidebar);
+    backdrop.addEventListener("click", () => {
+      sidebar.classList.remove("mobile-open");
+      backdrop.classList.remove("show");
+    });
+
+    // --- Exit / sign-off ---
+    document.getElementById("btnExit").addEventListener("click", () => {
+      if (confirm("End this training session and return to the homepage?")) {
+        window.location.href = "../index.html";
+      }
     });
   </script>
 
