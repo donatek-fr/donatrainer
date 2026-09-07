@@ -68,7 +68,9 @@ h3 { color: var(--text); font-size: 1.05rem; letter-spacing: 0; text-transform: 
   position: sticky; top: 0; z-index: 100;
 }
 .site-header .container { display: flex; align-items: center; justify-content: space-between; }
-.brand img { height: 44px; }
+.brand-wordmark { display: flex; flex-direction: column; line-height: 0.92; font-family: var(--font-display); font-weight: 700; letter-spacing: 0.01em; }
+.wm-dona { color: #fff; font-size: 1.65rem; }
+.wm-trainer { color: var(--brand); font-size: 1.65rem; }
 .nav-actions { display: flex; align-items: center; gap: 22px; }
 .nav-link { color: var(--text); font-weight: 500; font-size: 0.95rem; }
 .nav-link:hover { color: var(--brand); }
@@ -214,16 +216,16 @@ h3 { color: var(--text); font-size: 1.05rem; letter-spacing: 0; text-transform: 
 .about-copy strong { color: var(--text); }
 
 /* ---------- Footer ---------- */
-.site-footer { padding: 18px 0 16px; background: #080D0A; text-align: center; color: var(--muted); font-size: 0.8rem; border-top: 1px solid var(--line); }
+.site-footer { padding: 12px 0 10px; background: #080D0A; text-align: center; color: var(--muted); font-size: 0.8rem; border-top: 1px solid var(--line); }
 .site-footer .container { max-width: 600px; }
-.footer-credit { margin: 0 0 4px; font-size: 0.82rem; color: var(--text); }
+.footer-credit { margin: 0 0 2px; font-size: 0.78rem; color: var(--text); }
 .footer-credit a { color: var(--brand); font-weight: 600; }
 .footer-credit a:hover { text-decoration: underline; }
-.footer-sites { margin: 0 0 10px; font-size: 0.78rem; color: var(--muted); }
+.footer-sites { margin: 0 0 5px; font-size: 0.74rem; color: var(--muted); }
 .footer-sites a { color: var(--text); font-weight: 500; }
 .footer-sites a:hover { color: var(--brand); text-decoration: underline; }
-.footer-disclaimer { max-width: 540px; margin: 0 auto 8px; line-height: 1.5; font-size: 0.72rem; color: var(--muted); }
-.footer-meta { margin: 0; font-size: 0.7rem; color: var(--muted); opacity: 0.85; }
+.footer-disclaimer { max-width: 540px; margin: 0 auto 4px; line-height: 1.35; font-size: 0.68rem; color: var(--muted); }
+.footer-meta { margin: 0; font-size: 0.66rem; color: var(--muted); opacity: 0.85; }
 .footer-meta a { color: var(--muted); text-decoration: underline; text-underline-offset: 2px; }
 .footer-meta a:hover { color: var(--brand); }
 

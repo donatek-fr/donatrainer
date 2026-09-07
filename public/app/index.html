@@ -7,6 +7,12 @@
   <link rel="icon" href="../assets/img/logo.svg" />
   <link rel="stylesheet" href="../assets/css/base.css" />
   <link rel="stylesheet" href="../assets/css/app.css" />
+  <script>
+    // Set before first paint so there's no flash of the wrong theme.
+    try {
+      if (localStorage.getItem("amx_theme") === "light") document.documentElement.setAttribute("data-theme", "light");
+    } catch (e) { /* localStorage unavailable */ }
+  </script>
 </head>
 <body class="no-context-menu">
 
@@ -15,7 +21,7 @@
     <aside class="amx-sidebar" id="amxSidebar">
       <div class="amx-sidebar-top">
         <a href="../index.html" class="amx-side-logo">
-          <img src="../assets/img/logo.svg" alt="DonaTrainer" />
+          <span class="brand-wordmark"><span class="wm-dona">DONA</span><span class="wm-trainer">TRAINER</span></span>
         </a>
         <button id="btnSidebarToggle" class="amx-side-toggle" title="Collapse sidebar" aria-label="Toggle sidebar">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
@@ -70,7 +76,58 @@
 
     <!-- Main Column -->
     <div class="amx-col">
-      <div class="amx-env-ribbon">TRAINING ENVIRONMENT — NOT CONNECTED TO ANY LIVE GDS</div>
+      <!-- Title Bar -->
+      <div class="amx-titlebar">
+        <svg class="amx-titlebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 8h18"/></svg>
+        <span class="amx-titlebar-title">DonaTrainer — Amadeus Selling Platform Connect (Training)</span>
+        <span class="amx-mode-badge">TRAINING MODE</span>
+        <div class="amx-titlebar-spacer"></div>
+        <button id="btnThemeToggle" class="amx-theme-toggle" title="Toggle light/dark mode" aria-label="Toggle theme">
+          <svg class="icon-sun" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5Z"/></svg>
+        </button>
+        <div class="amx-win-controls">
+          <button id="btnWinMinimize" class="amx-win-btn" title="Minimize" aria-label="Minimize">
+            <svg viewBox="0 0 12 12" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 6h8"/></svg>
+          </button>
+          <button id="btnWinMaximize" class="amx-win-btn" title="Maximize" aria-label="Maximize">
+            <svg viewBox="0 0 12 12" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="2" width="8" height="8"/></svg>
+          </button>
+          <button id="btnWinClose" class="amx-win-btn close" title="Close" aria-label="Close">
+            <svg viewBox="0 0 12 12" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 2l8 8M10 2l-8 8"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Menu Bar -->
+      <div class="amx-menubar" id="amxMenubar">
+        <div class="amx-menu">
+          <button class="amx-menu-btn">File</button>
+          <div class="amx-menu-dropdown">
+            <button class="amx-menu-item" data-action="exit">Exit Simulator</button>
+          </div>
+        </div>
+        <div class="amx-menu">
+          <button class="amx-menu-btn">View</button>
+          <div class="amx-menu-dropdown">
+            <button class="amx-menu-item" data-action="theme-light">Light Mode <span class="check" data-theme-check="light"></span></button>
+            <button class="amx-menu-item" data-action="theme-dark">Dark Mode <span class="check" data-theme-check="dark"></span></button>
+          </div>
+        </div>
+        <div class="amx-menu">
+          <button class="amx-menu-btn">Queue</button>
+          <div class="amx-menu-dropdown">
+            <button class="amx-menu-item" data-action="queue-totals">Queue Totals (QTQ)</button>
+          </div>
+        </div>
+        <div class="amx-menu">
+          <button class="amx-menu-btn">Help</button>
+          <div class="amx-menu-dropdown">
+            <a class="amx-menu-item" href="../guide/index.html">Handbook</a>
+            <button class="amx-menu-item" data-action="help-commands">Command Help (HE)</button>
+          </div>
+        </div>
+      </div>
 
       <header class="amx-topbar">
         <div class="amx-wrap">
@@ -105,6 +162,13 @@
           </div>
         </section>
       </main>
+
+      <!-- Status Bar -->
+      <div class="amx-statusbar">
+        <span><span class="dot">●</span> Ready</span>
+        <span>Training Mode</span>
+        <span id="amxStatusOffice">Office: STRASBOURG/FR</span>
+      </div>
 
       <!-- Footer -->
       <footer class="site-footer">
@@ -152,11 +216,12 @@
     });
 
     // --- Exit / sign-off ---
-    document.getElementById("btnExit").addEventListener("click", () => {
+    function exitSimulator() {
       if (confirm("End this training session and return to the homepage?")) {
         window.location.href = "../index.html";
       }
-    });
+    }
+    document.getElementById("btnExit").addEventListener("click", exitSimulator);
 
     // --- Download session transcript ---
     document.getElementById("btnDownloadLog").addEventListener("click", () => {
@@ -170,6 +235,69 @@
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
+    });
+
+    // --- Light / dark theme toggle ---
+    function setTheme(mode) {
+      if (mode === "light") document.documentElement.setAttribute("data-theme", "light");
+      else document.documentElement.removeAttribute("data-theme");
+      localStorage.setItem("amx_theme", mode);
+      document.querySelectorAll("[data-theme-check]").forEach(el => {
+        el.textContent = el.getAttribute("data-theme-check") === mode ? "✓" : "";
+      });
+    }
+    function currentTheme() { return document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark"; }
+    document.getElementById("btnThemeToggle").addEventListener("click", () => {
+      setTheme(currentTheme() === "light" ? "dark" : "light");
+    });
+    setTheme(currentTheme()); // sync the View-menu checkmarks with whatever the head script already set
+
+    // --- Window controls ---
+    document.getElementById("btnWinClose").addEventListener("click", exitSimulator);
+    document.getElementById("btnWinMinimize").addEventListener("click", () => {
+      writeStatus("Minimize isn't available in a browser tab.");
+    });
+    const btnMaximize = document.getElementById("btnWinMaximize");
+    btnMaximize.addEventListener("click", () => {
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+      } else if (document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(() => writeStatus("Fullscreen was blocked by the browser."));
+      }
+    });
+    document.addEventListener("fullscreenchange", () => {
+      btnMaximize.title = document.fullscreenElement ? "Restore" : "Maximize";
+    });
+    function writeStatus(msg) {
+      const bar = document.querySelector(".amx-statusbar");
+      const first = bar.querySelector("span");
+      const original = first.innerHTML;
+      first.textContent = msg;
+      setTimeout(() => { first.innerHTML = original; }, 2500);
+    }
+
+    // --- Menu bar ---
+    const menus = Array.from(document.querySelectorAll(".amx-menu"));
+    function closeMenus() { menus.forEach(m => m.classList.remove("open")); }
+    menus.forEach(menu => {
+      menu.querySelector(".amx-menu-btn").addEventListener("click", (e) => {
+        const wasOpen = menu.classList.contains("open");
+        closeMenus();
+        if (!wasOpen) menu.classList.add("open");
+        e.stopPropagation();
+      });
+    });
+    document.addEventListener("click", closeMenus);
+    document.querySelectorAll(".amx-menu-item[data-action]").forEach(item => {
+      item.addEventListener("click", () => {
+        const action = item.getAttribute("data-action");
+        if (action === "exit") exitSimulator();
+        else if (action === "theme-light") setTheme("light");
+        else if (action === "theme-dark") setTheme("dark");
+        else if (action === "queue-totals") window.exec("QTQ");
+        else if (action === "help-commands") window.exec("HE");
+        closeMenus();
+      });
     });
   </script>
 
