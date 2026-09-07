@@ -133,10 +133,10 @@
             <div class="cmd-block"><span class="syntax">FFN &lt;CARRIER-NUMBER&gt;</span><div class="desc">Attach a frequent flyer number, e.g. <code>FFN QR-1234567</code>.</div></div>
             <div class="cmd-block"><span class="syntax">SR &lt;TYPE&gt; &lt;text&gt;</span><div class="desc">A generic special service request — meals, wheelchair, passport data: <code>SR VGML VEGETARIAN MEAL</code>, <code>SR DOCS P QA 12345 14JAN30</code>.</div></div>
           </div>
-          <p>Seat maps and assignments work the same way you'd expect on a real segment display:</p>
+          <p>Seat maps and assignments work the same way you'd expect on a real segment display — the layout depends on the cabin (a 2-2 business layout with lettered A/C/D/F seats, or a 3-3 economy layout with A-F) and which seats are already taken stays consistent every time you look:</p>
           <div class="cmd-grid">
-            <div class="cmd-block"><span class="syntax">SM &lt;SEGMENT#&gt;</span><div class="desc">Display a seat map for that segment.</div></div>
-            <div class="cmd-block"><span class="syntax">ST/&lt;SEAT&gt;/P&lt;PAX#&gt;</span><div class="desc"><code>ST/24A/P1</code> — assign 24A to passenger 1 across every segment.</div></div>
+            <div class="cmd-block"><span class="syntax">SM &lt;SEGMENT#&gt;</span><div class="desc">Display the seat map for that segment.</div></div>
+            <div class="cmd-block"><span class="syntax">ST/&lt;SEAT&gt;/P&lt;PAX#&gt;</span><div class="desc"><code>ST/24A/P1</code> — assign 24A to passenger 1 across every segment. Rejects seats that don't exist in that cabin or are already occupied.</div></div>
           </div>
         </section>
 
@@ -173,7 +173,7 @@
               </tbody>
             </table>
           </div>
-          <p>All four accept a passenger scope: <code>/P1</code> (passenger 1 only), <code>/PAX</code> (adults and children), <code>/INF</code> (infant only).</p>
+          <p>All four accept a passenger scope: <code>/P1</code> (passenger 1 only), <code>/PAX</code> (adults and children), <code>/INF</code> (infant only). The fare itself is calculated from real distance and the booking class you sold — a short hop in a discounted class prices well below a long-haul in a full-fare class. <code>FXR</code> and <code>FXB</code> additionally re-check the class inventory left open on the segment and price against whichever class is actually cheapest and available, exactly like a real lowest-fare search.</p>
           <div class="cmd-grid">
             <div class="cmd-block"><span class="syntax">FQD&lt;FROM&gt;&lt;TO&gt;[/A&lt;CARRIER&gt;][/D&lt;DDMMM&gt;]</span><div class="desc">Fare display for a city pair, no PNR required.</div></div>
             <div class="cmd-block"><span class="syntax">FQP&lt;FROM&gt;/A&lt;CARRIER&gt;/D&lt;DDMMM&gt;&lt;TO&gt;</span><div class="desc">Informative pricing for a specific itinerary without booking it. Chain a second leg with <code>---</code>.</div></div>

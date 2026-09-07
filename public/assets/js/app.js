@@ -133,6 +133,19 @@ function pnrTstLatest(pnr) { return pnr.tst && pnr.tst.length ? pnr.tst[pnr.tst.
 function baggageAllowanceFor(cabin) {
   return ["F", "J", "C", "D"].includes(cabin) ? "2PC (32KG EACH)" : "1PC (23KG)";
 }
+function generateSeatMap(cabin) {
+  const business = ["F", "J", "C", "D"].includes(cabin);
+  const letters = business ? ["A", "C", "D", "F"] : ["A", "B", "C", "D", "E", "F"];
+  const startRow = business ? 1 + Math.floor(Math.random() * 2) : 10 + Math.floor(Math.random() * 8);
+  const rowCount = business ? 4 : 7;
+  const rows = [];
+  for (let r = 0; r < rowCount; r++) {
+    const seats = {};
+    letters.forEach(l => { seats[l] = Math.random() < 0.55 ? "X" : "O"; });
+    rows.push({ row: startRow + r, seats });
+  }
+  return { letters, rows };
+}
 function buildTicketPrintHTML(pnr) {
   const airline = AMX.state.world.airlines.find(a => a.code === pnr.validatingCarrier);
   const carrierName = airline ? airline.name : (pnr.validatingCarrier || "VALIDATING CARRIER NOT SET");
@@ -343,19 +356,44 @@ function selectPassengersByScope(pnr, scope) {
   if (m) { const idx = parseInt(m[1], 10) - 1; return pnr.passengers[idx] ? [idx] : []; }
   return all;
 }
+const CLASS_RATE = { F: 0.42, J: 0.28, C: 0.25, D: 0.22, Y: 0.15, M: 0.12, K: 0.10, B: 0.09, H: 0.085, Q: 0.075 };
+function classRate(letter) { return CLASS_RATE[letter] || 0.12; }
+function segmentDistanceKm(seg) {
+  const a = findAirport(seg.from), b = findAirport(seg.to);
+  return (a && b) ? haversineKm(a.lat, a.lon, b.lat, b.lon) : 800;
+}
+function cheapestAvailableClass(seg) {
+  const tokens = (seg.classes || "").split(" ").filter(Boolean);
+  const available = tokens
+    .map(t => ({ letter: t[0], count: parseInt(t.slice(1), 10) || 0 }))
+    .filter(t => t.count > 0);
+  if (!available.length) return seg.cabin || "Y";
+  available.sort((a, b) => classRate(a.letter) - classRate(b.letter));
+  return available[0].letter;
+}
+function segmentFare(seg, lowest) {
+  const distanceKm = segmentDistanceKm(seg);
+  const cabin = lowest ? cheapestAvailableClass(seg) : (seg.cabin || "Y");
+  const base = Math.max(40, classRate(cabin) * distanceKm);
+  const tax = Math.min(95, 18 + distanceKm * 0.011);
+  return { base, tax, cabin, distanceKm };
+}
 function computeFare(pnr, idxList, lowest) {
-  const BASE = lowest ? 280 : 350;
   let totalBase = 0;
+  let totalTaxes = 0;
   idxList.forEach(i => {
     const pax = pnr.passengers[i];
-    let baseFare = BASE;
-    if (pax.type === "CHD") baseFare *= 0.75;
-    if (pax.type === "INF") baseFare *= 0.10;
-    totalBase += baseFare;
+    const baseMult = pax.type === "CHD" ? 0.75 : pax.type === "INF" ? 0.10 : 1;
+    const taxMult = pax.type === "INF" ? 0.10 : 1;
+    pnr.segments.forEach(seg => {
+      const { base, tax } = segmentFare(seg, lowest);
+      totalBase += base * baseMult;
+      totalTaxes += tax * taxMult;
+    });
   });
-  const payingCount = idxList.filter(i => pnr.passengers[i].type !== "INF").length;
-  const totalTaxes = 115.50 * payingCount;
-  return { currency: "EUR", base: totalBase, taxes: totalTaxes, total: totalBase + totalTaxes, scope: idxList, lowest: !!lowest };
+  totalBase = Math.round(totalBase * 100) / 100;
+  totalTaxes = Math.round(totalTaxes * 100) / 100;
+  return { currency: "EUR", base: totalBase, taxes: totalTaxes, total: Math.round((totalBase + totalTaxes) * 100) / 100, scope: idxList, lowest: !!lowest };
 }
 function parsePricingScope(arg) { return arg.trim().toUpperCase().replace(/^\//, "") || null; }
 
@@ -436,7 +474,7 @@ const HELP_TOPICS = {
   RT: "RT<LOCATOR> retrieves a PNR. RT/<SURNAME> searches by exact surname, RT/<PARTIAL> by partial surname (numbered list - select with RT<n>). Bare RT redisplays the active PNR. Retrieval occasionally triggers a random schedule change (IROPS), queuing the PNR to queue 5.",
   NU: "NU<OLD#>/<NEW#><SURNAME>/<FIRSTNAME> [TITLE] updates a passenger's name in the active PNR.",
   SP: "SP <PAX NUMBER>[,<PAX NUMBER>...] splits the listed passengers (and the shared itinerary) into a new, unsaved PNR - save it with ER.",
-  PRICING: "FXX/FXR display a fare without storing it; FXP/FXB store it as a TST (FXB also uses the lowest fare found). Add /P1, /PAX or /INF to price a subset of passengers.",
+  PRICING: "Fares are calculated from real distance and booking class, not a flat number - a short hop in K class prices far below a long-haul in J. FXX/FXR display a fare without storing it; FXP/FXB store it as a TST. FXR/FXB also re-check the class actually open on file and use the cheapest one available, same as a real lowest-fare search. Add /P1, /PAX or /INF to price a subset of passengers.",
   FXP: "FXP prices the active itinerary and stores the result as a TST, including the fare calculation (FC) line, fare basis, tax breakdown by code, and NVB/NVA validity dates. Use /P1 for passenger 1 only, /PAX for adults+children, /INF for the infant only.",
   FXD: "FXD<FROM><TO> (or FXD<N><FROM><TO>) runs the Master Pricer and returns a ranked list of fare recommendations for the city pair.",
   FQD: "FQD<FROM><TO>[/A<CARRIER>][/C<CLASS>][/D<DDMMM>][/R,-CH|/R,-INF] displays fares for a city pair without needing a PNR.",
@@ -1040,28 +1078,37 @@ const commands = {
   SM: (arg) => {
     const pnr = ensurePNR();
     const segIdx = parseInt(arg.trim(), 10) - 1;
-    if (!pnr.segments[segIdx]) return writeLine("SEGMENT NOT FOUND", "err");
-    writeLine(`SEAT MAP FOR SEGMENT ${segIdx + 1}`, "ok");
-    writeLine("   A B C   D E F", "hint");
-    writeLine("24 O O X   O X O", "hint");
-    writeLine("25 X O O   O O X", "hint");
+    const seg = pnr.segments[segIdx];
+    if (!seg) return writeLine("SEGMENT NOT FOUND", "err");
+    if (!seg.seatMap) seg.seatMap = generateSeatMap(seg.cabin);
+    const { letters, rows } = seg.seatMap;
+    writeLine(`SEAT MAP FOR SEGMENT ${segIdx + 1} - ${seg.carrier}${seg.flight} ${seg.cabin || "Y"} CLASS`, "ok");
+    writeLine(`      ${letters.join("  ")}`, "hint");
+    rows.forEach(r => writeLine(`${String(r.row).padStart(3)}   ${letters.map(l => r.seats[l]).join("  ")}`, "hint"));
+    writeLine("O = AVAILABLE   X = OCCUPIED", "hint");
   },
   ST: (arg) => {
     const pnr = ensurePNR();
-    const m = arg.toUpperCase().match(/^\/?(\d+[A-F])\/P(\d+)$/);
+    const m = arg.toUpperCase().match(/^\/?(\d+)([A-Z])\/P(\d+)$/);
     if (!m) return writeLine("FORMAT: ST/<SEAT>/P<PAX#>", "err");
-    const [, seat, paxIdx] = m;
+    const [, rowStr, letter, paxIdx] = m;
+    const seat = `${rowStr}${letter}`;
     if (!pnr.passengers[paxIdx - 1]) return writeLine("PASSENGER NOT FOUND", "err");
-    if (pnr.segments[0]) {
-      pnr.segments.forEach(seg => {
-        if (!seg.seats) seg.seats = [];
-        seg.seats[paxIdx - 1] = seat;
-      });
-      addHistory(pnr, `ASSIGNED SEAT ${seat} TO PAX ${paxIdx}`);
-      writeLine(`SEAT ${seat} ASSIGNED TO PAX ${paxIdx} FOR ALL SEGMENTS`, "ok");
-    } else {
-      writeLine("NO FLIGHTS TO ASSIGN SEATS TO", "err");
+    if (!pnr.segments.length) return writeLine("NO FLIGHTS TO ASSIGN SEATS TO", "err");
+    for (const seg of pnr.segments) {
+      if (!seg.seatMap) seg.seatMap = generateSeatMap(seg.cabin);
+      const row = seg.seatMap.rows.find(r => String(r.row) === rowStr);
+      if (!row || !(letter in row.seats)) return writeLine(`SEAT ${seat} DOES NOT EXIST ON THIS AIRCRAFT`, "err");
+      if (row.seats[letter] === "X" && seg.seats?.[paxIdx - 1] !== seat) return writeLine(`SEAT ${seat} IS ALREADY OCCUPIED`, "err");
     }
+    pnr.segments.forEach(seg => {
+      if (!seg.seats) seg.seats = [];
+      seg.seats[paxIdx - 1] = seat;
+      const row = seg.seatMap.rows.find(r => String(r.row) === rowStr);
+      if (row) row.seats[letter] = "X";
+    });
+    addHistory(pnr, `ASSIGNED SEAT ${seat} TO PAX ${paxIdx}`);
+    writeLine(`SEAT ${seat} ASSIGNED TO PAX ${paxIdx} FOR ALL SEGMENTS`, "ok");
   },
 
   // Queues
