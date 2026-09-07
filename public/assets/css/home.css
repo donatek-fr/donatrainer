@@ -214,33 +214,18 @@ h3 { color: var(--text); font-size: 1.05rem; letter-spacing: 0; text-transform: 
 .about-copy strong { color: var(--text); }
 
 /* ---------- Footer ---------- */
-.site-footer { padding: 28px 0 24px; background: #080D0A; text-align: center; color: var(--muted); font-size: 0.82rem; border-top: 1px solid var(--line); }
-.site-footer .container { max-width: 720px; }
-.footer-link a { color: var(--text); text-decoration: none; border: 1px solid var(--line); padding: 4px 12px; border-radius: 999px; transition: all 0.2s; }
-.footer-link a:hover { background: var(--brand); border-color: var(--brand); color: #06120D; }
-
-.footer-credits { display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
-.credit-chip {
-  display: inline-flex; align-items: center; gap: 7px;
-  padding: 6px 14px; border: 1px solid var(--line); border-radius: 999px;
-  font-size: 0.78rem; color: var(--text); text-decoration: none;
-  transition: border-color 0.2s, background 0.2s, color 0.2s;
-}
-.credit-chip:hover { border-color: var(--brand); background: var(--brand-light); color: #fff; }
-.credit-chip.support { border-color: rgba(53, 226, 140, 0.4); color: var(--brand); }
-.credit-chip.support:hover { background: var(--brand); color: #06120D; }
-.li-badge {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 16px; height: 16px; border-radius: 3px;
-  background: #0A66C2; color: #fff; font-size: 0.6rem; font-weight: 800;
-}
-.gh-badge { display: inline-flex; width: 14px; height: 14px; color: currentColor; }
-.gh-badge svg { width: 100%; height: 100%; }
-
-.footer-disclaimer { max-width: 620px; margin: 0 auto 12px; line-height: 1.6; font-size: 0.78rem; color: var(--muted); }
-.footer-contact { margin: 0 0 10px; font-size: 0.8rem; }
-.footer-contact a { color: var(--brand); }
-.footer-copyright { margin: 0; font-size: 0.76rem; color: var(--muted); opacity: 0.85; }
+.site-footer { padding: 18px 0 16px; background: #080D0A; text-align: center; color: var(--muted); font-size: 0.8rem; border-top: 1px solid var(--line); }
+.site-footer .container { max-width: 600px; }
+.footer-credit { margin: 0 0 4px; font-size: 0.82rem; color: var(--text); }
+.footer-credit a { color: var(--brand); font-weight: 600; }
+.footer-credit a:hover { text-decoration: underline; }
+.footer-sites { margin: 0 0 10px; font-size: 0.78rem; color: var(--muted); }
+.footer-sites a { color: var(--text); font-weight: 500; }
+.footer-sites a:hover { color: var(--brand); text-decoration: underline; }
+.footer-disclaimer { max-width: 540px; margin: 0 auto 8px; line-height: 1.5; font-size: 0.72rem; color: var(--muted); }
+.footer-meta { margin: 0; font-size: 0.7rem; color: var(--muted); opacity: 0.85; }
+.footer-meta a { color: var(--muted); text-decoration: underline; text-underline-offset: 2px; }
+.footer-meta a:hover { color: var(--brand); }
 
 /* ---------- Scroll to Top ---------- */
 #scrollTopBtn {
