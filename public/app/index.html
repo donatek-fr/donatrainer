@@ -55,6 +55,10 @@
       </nav>
 
       <div class="amx-side-bottom">
+        <button id="btnDownloadLog" class="amx-side-link" title="Download Log">
+          <span class="icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg></span>
+          <span class="label">Download Log</span>
+        </button>
         <button id="btnExit" class="amx-side-link danger" title="Exit Simulator">
           <span class="icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg></span>
           <span class="label">Exit Simulator</span>
@@ -152,6 +156,20 @@
       if (confirm("End this training session and return to the homepage?")) {
         window.location.href = "../index.html";
       }
+    });
+
+    // --- Download session transcript ---
+    document.getElementById("btnDownloadLog").addEventListener("click", () => {
+      const text = document.getElementById("output").innerText;
+      const blob = new Blob([text], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `donatrainer-session-${new Date().toISOString().slice(0, 10)}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
     });
   </script>
 

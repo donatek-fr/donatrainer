@@ -120,6 +120,8 @@
             <div class="cmd-block"><span class="syntax">NM1SMITH/TIM MSTR(CHD/16JUN17)</span><div class="desc">A child, with date of birth.</div></div>
             <div class="cmd-block"><span class="syntax">NM1ALI/AYA MRS(INF/NINA/06AUG22)</span><div class="desc">An infant travelling on the adult's lap — infant's own first name and date of birth.</div></div>
           </div>
+          <p><strong>Groups</strong> go in one entry too — bump the leading number and chain more first-name/title pairs after the shared surname:</p>
+          <div class="cmd-block"><span class="syntax">NM2SMITH/JOHN MR/JANE MRS</span><div class="desc">Adds two SMITHs — John (Mr) and Jane (Mrs) — in a single line.</div></div>
           <p class="muted">If your selected class shows <code>0</code> seats in the availability display, <code>SS</code> won't refuse the sale — it waitlists it (status <code>HL</code> instead of <code>HK</code>) exactly like the real system would.</p>
         </section>
 
@@ -151,6 +153,7 @@
             <div class="cmd-block"><span class="syntax">RH</span><div class="desc">Full history of every entry made against the active PNR.</div></div>
             <div class="cmd-block"><span class="syntax">XE&lt;n&gt; / XI</span><div class="desc"><code>XE2</code> cancels element number 2 from the itinerary display; <code>XI</code> clears every flight segment at once.</div></div>
             <div class="cmd-block"><span class="syntax">SBC&lt;n&gt; / SB&lt;DDMMM&gt;&lt;n&gt;</span><div class="desc">Rebook segment <em>n</em> into a new class, or onto a new date.</div></div>
+            <div class="cmd-block"><span class="syntax">SB (bare) / SB&lt;n&gt;</span><div class="desc">Bare <code>SB</code> pulls fresh availability for the disrupted segment (the schedule-changed one, if any) and numbers it. <code>SB2</code> then rebooks straight onto option 2 — no more guessing a date blind.</div></div>
             <div class="cmd-block"><span class="syntax">NU&lt;OLD#&gt;/&lt;NEW#&gt;&lt;SURNAME&gt;/&lt;FIRST&gt;</span><div class="desc">Correct a passenger's name after the fact.</div></div>
             <div class="cmd-block"><span class="syntax">SP &lt;PAX#&gt;[,&lt;PAX#&gt;...]</span><div class="desc">Split named passengers into a brand-new, unsaved PNR that keeps the same itinerary — save it with <code>ER</code>.</div></div>
             <div class="cmd-block"><span class="syntax">RRN</span><div class="desc">Copy the active PNR's itinerary into a fresh booking, ready for new names.</div></div>
@@ -175,7 +178,7 @@
           </div>
           <p>All four accept a passenger scope: <code>/P1</code> (passenger 1 only), <code>/PAX</code> (adults and children), <code>/INF</code> (infant only). The fare itself is calculated from real distance and the booking class you sold — a short hop in a discounted class prices well below a long-haul in a full-fare class. <code>FXR</code> and <code>FXB</code> additionally re-check the class inventory left open on the segment and price against whichever class is actually cheapest and available, exactly like a real lowest-fare search.</p>
           <div class="cmd-grid">
-            <div class="cmd-block"><span class="syntax">FQD&lt;FROM&gt;&lt;TO&gt;[/A&lt;CARRIER&gt;][/D&lt;DDMMM&gt;]</span><div class="desc">Fare display for a city pair, no PNR required.</div></div>
+            <div class="cmd-block"><span class="syntax">FQD&lt;FROM&gt;&lt;TO&gt;[/A&lt;CARRIER&gt;][/D&lt;DDMMM&gt;][/C&lt;CCY&gt;]</span><div class="desc">Fare display for a city pair, no PNR required. <code>/CUSD</code>, <code>/CGBP</code>, <code>/CQAR</code> etc. re-price in another currency.</div></div>
             <div class="cmd-block"><span class="syntax">FQP&lt;FROM&gt;/A&lt;CARRIER&gt;/D&lt;DDMMM&gt;&lt;TO&gt;</span><div class="desc">Informative pricing for a specific itinerary without booking it. Chain a second leg with <code>---</code>.</div></div>
             <div class="cmd-block"><span class="syntax">FXD&lt;FROM&gt;&lt;TO&gt;</span><div class="desc">Master Pricer — a ranked list of fare recommendations for a route.</div></div>
             <div class="cmd-block"><span class="syntax">FQN</span><div class="desc">Fare rules for whatever's currently priced.</div></div>
@@ -198,6 +201,7 @@
           <div class="cmd-grid">
             <div class="cmd-block"><span class="syntax">TWD / TWD/L&lt;n&gt; / TWD/TKT&lt;number&gt;</span><div class="desc">Display an e-ticket's full coupon block by line or by number. <code>TWD/TAX</code> shows the tax breakdown by code (e.g. <code>GB</code>, <code>YQ</code>), <code>TWH</code> its history.</div></div>
             <div class="cmd-block"><span class="syntax">TRDC/L&lt;n&gt; / TRDC/TK-&lt;number&gt;</span><div class="desc">Void a ticket issued today.</div></div>
+            <div class="cmd-block"><span class="syntax">TRF[/L&lt;n&gt;]</span><div class="desc">Process a refund — independent of <code>TRDC</code>. Prints a quote (fare paid, penalty, refund due); a nonrefundable fare returns EUR 0.00 due.</div></div>
           </div>
         </section>
 
@@ -277,7 +281,7 @@
                 <tr><td>IEP / IEPJ</td><td>Email the itinerary</td></tr>
                 <tr><td>IR / IG</td><td>Ignore &amp; re-retrieve / ignore</td></tr>
                 <tr><td>ITR/P</td><td>Print the itinerary</td></tr>
-                <tr><td>NM</td><td>Passenger name (+ child/infant)</td></tr>
+                <tr><td>NM</td><td>Passenger name (+ child/infant/group)</td></tr>
                 <tr><td>NU</td><td>Update a passenger's name</td></tr>
                 <tr><td>OS</td><td>Other service information</td></tr>
                 <tr><td>PM / PME / PC / PIN / PER / PI / PDI / PDN / PD / PT</td><td>Customer profile family</td></tr>
@@ -287,7 +291,7 @@
                 <tr><td>RM</td><td>Remark</td></tr>
                 <tr><td>RRN</td><td>Copy PNR into a new booking</td></tr>
                 <tr><td>RT</td><td>Retrieve (by locator, surname, or selection)</td></tr>
-                <tr><td>SB</td><td>Rebook a segment's class or date</td></tr>
+                <tr><td>SB</td><td>Rebook a segment's class, date, or (bare) show rebooking options</td></tr>
                 <tr><td>SM / ST</td><td>Seat map / seat assignment</td></tr>
                 <tr><td>SP</td><td>Split passengers into a new PNR</td></tr>
                 <tr><td>SR</td><td>Special service request</td></tr>
@@ -296,6 +300,7 @@
                 <tr><td>TKOK</td><td>Ticketing arrangement</td></tr>
                 <tr><td>TRAIN</td><td>Start guided scenario training</td></tr>
                 <tr><td>TRDC</td><td>Void a ticket</td></tr>
+                <tr><td>TRF</td><td>Process a refund</td></tr>
                 <tr><td>TTP</td><td>Issue tickets</td></tr>
                 <tr><td>TWD / TWH</td><td>Display a ticket / its history</td></tr>
                 <tr><td>XE / XI</td><td>Cancel one element / cancel the itinerary</td></tr>

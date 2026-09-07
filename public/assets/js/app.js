@@ -33,6 +33,7 @@ AMX.state = {
   },
   queueBrowse: null,
   lastTicket: null,
+  rebookOptions: null,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -130,6 +131,17 @@ function buildElementList(pnr) {
   return items;
 }
 function pnrTstLatest(pnr) { return pnr.tst && pnr.tst.length ? pnr.tst[pnr.tst.length - 1] : null; }
+function loadProgress() {
+  try { return JSON.parse(localStorage.getItem("dtx_progress")) || { completed: [] }; } catch (e) { return { completed: [] }; }
+}
+function saveProgress(p) { localStorage.setItem("dtx_progress", JSON.stringify(p)); }
+function markScenarioComplete(title) {
+  const progress = loadProgress();
+  if (!progress.completed.includes(title)) {
+    progress.completed.push(title);
+    saveProgress(progress);
+  }
+}
 function baggageAllowanceFor(cabin) {
   return ["F", "J", "C", "D"].includes(cabin) ? "2PC (32KG EACH)" : "1PC (23KG)";
 }
@@ -272,12 +284,29 @@ function addMinutesToClock(hour, min, durationMin) {
   const clock = ((total % 1440) + 1440) % 1440;
   return { hour: Math.floor(clock / 60), min: clock % 60, dayOffset };
 }
+// Seeded PRNG so the same AN query always returns the same "schedule" instead
+// of a fresh random draw every time (mockAvailability swaps this in/out).
+let _rand = Math.random;
+function mulberry32(seed) {
+  let s = seed | 0;
+  return function () {
+    s = (s + 0x6D2B79F5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function hashString(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
+  return h;
+}
 function randomClasses(distanceKm) {
   const longHaul = distanceKm > 3500;
   const letters = longHaul ? ["J","C","D","Y","M","K","B","H"] : ["J","Y","M","K","B","H"];
-  const count = 4 + Math.floor(Math.random() * 3);
+  const count = 4 + Math.floor(_rand() * 3);
   const chosen = letters.slice(0, Math.min(count, letters.length));
-  return chosen.map(l => `${l}${Math.random() < 0.15 ? 0 : Math.floor(Math.random() * 9) + 1}`).join(" ");
+  return chosen.map(l => `${l}${_rand() < 0.15 ? 0 : Math.floor(_rand() * 9) + 1}`).join(" ");
 }
 function classAvailable(classesStr, letter) {
   const token = (classesStr || "").split(" ").find(t => t[0] === letter);
@@ -289,12 +318,12 @@ function buildLeg(date, from, to, carrier) {
   const a = findAirport(from), b = findAirport(to);
   const duration = (a && b) ? flightDurationMinutes(a, b) : 120;
   const distanceKm = (a && b) ? haversineKm(a.lat, a.lon, b.lat, b.lon) : 800;
-  const depHour = 6 + Math.floor(Math.random() * 15);
-  const depMin = [0, 15, 30, 45][Math.floor(Math.random() * 4)];
+  const depHour = 6 + Math.floor(_rand() * 15);
+  const depMin = [0, 15, 30, 45][Math.floor(_rand() * 4)];
   const arrival = addMinutesToClock(depHour, depMin, duration);
   return {
     date: fmtDDMMM(date), from, to, carrier,
-    flight: String(Math.floor(Math.random() * 800) + 100),
+    flight: String(Math.floor(_rand() * 800) + 100),
     dep: `${fmt.pad(depHour)}:${fmt.pad(depMin)}`,
     arr: `${fmt.pad(arrival.hour)}:${fmt.pad(arrival.min)}${arrival.dayOffset ? "+" + arrival.dayOffset : ""}`,
     classes: randomClasses(distanceKm),
@@ -313,27 +342,34 @@ function findConnection(from, to, excludeCity) {
 }
 function mockAvailability(date, from, to, opts = {}) {
   const world = AMX.state.world;
-  let routes = world.routes.filter(r => r[0] === from && r[1] === to);
-  if (opts.airlineFilter) routes = routes.filter(r => r[2] === opts.airlineFilter);
+  const seedKey = `${fmtDDMMM(date)}|${from}|${to}|${opts.airlineFilter || ""}|${opts.directOnly ? 1 : 0}|${opts.excludeCity || ""}`;
+  const prevRand = _rand;
+  _rand = mulberry32(hashString(seedKey));
+  try {
+    let routes = world.routes.filter(r => r[0] === from && r[1] === to);
+    if (opts.airlineFilter) routes = routes.filter(r => r[2] === opts.airlineFilter);
 
-  const lines = [];
-  if (routes.length) {
-    const carriers = [...new Set(routes.map(r => r[2]))];
-    const flightCount = Math.min(carriers.length * 2, 4 + Math.floor(Math.random() * 5));
-    for (let i = 0; i < flightCount; i++) {
-      const carrier = carriers[i % carriers.length];
-      const leg = buildLeg(date, from, to, carrier);
-      lines.push({ line: i + 1, connection: false, segments: [leg], from, to, carrier });
+    const lines = [];
+    if (routes.length) {
+      const carriers = [...new Set(routes.map(r => r[2]))];
+      const flightCount = Math.min(carriers.length * 2, 4 + Math.floor(_rand() * 5));
+      for (let i = 0; i < flightCount; i++) {
+        const carrier = carriers[i % carriers.length];
+        const leg = buildLeg(date, from, to, carrier);
+        lines.push({ line: i + 1, connection: false, segments: [leg], from, to, carrier });
+      }
+    } else if (!opts.directOnly) {
+      const conn = findConnection(from, to, opts.excludeCity);
+      if (conn) {
+        const leg1 = buildLeg(date, from, conn.hub, conn.carrier1);
+        const leg2 = buildLeg(date, conn.hub, to, conn.carrier2);
+        lines.push({ line: 1, connection: true, segments: [leg1, leg2], from, to, carrier: `${conn.carrier1}/${conn.carrier2}` });
+      }
     }
-  } else if (!opts.directOnly) {
-    const conn = findConnection(from, to, opts.excludeCity);
-    if (conn) {
-      const leg1 = buildLeg(date, from, conn.hub, conn.carrier1);
-      const leg2 = buildLeg(date, conn.hub, to, conn.carrier2);
-      lines.push({ line: 1, connection: true, segments: [leg1, leg2], from, to, carrier: `${conn.carrier1}/${conn.carrier2}` });
-    }
+    return lines;
+  } finally {
+    _rand = prevRand;
   }
-  return lines;
 }
 function printAvailLine(l) {
   if (!l.connection) {
@@ -357,6 +393,7 @@ function selectPassengersByScope(pnr, scope) {
   return all;
 }
 const CLASS_RATE = { F: 0.42, J: 0.28, C: 0.25, D: 0.22, Y: 0.15, M: 0.12, K: 0.10, B: 0.09, H: 0.085, Q: 0.075 };
+const CURRENCY_RATES = { EUR: 1, USD: 1.08, GBP: 0.86, QAR: 3.94, AED: 3.97, SAR: 4.05, INR: 90.5, SGD: 1.46, AUD: 1.66, JPY: 163 };
 function classRate(letter) { return CLASS_RATE[letter] || 0.12; }
 function segmentDistanceKm(seg) {
   const a = findAirport(seg.from), b = findAirport(seg.to);
@@ -558,15 +595,26 @@ const commands = {
   },
   NM: (arg) => {
     const pnr = ensurePNR();
-    const m = arg.toUpperCase().match(/^1([A-Z'\-]+)\/([A-Z'\-]+)\s+(MR|MRS|MS|MSTR|MISS)(?:\((CHD|INF)\/?([A-Z]*)\/?(\d{1,2}[A-Z]{3}\d{0,4})\))?$/);
-    if (!m) return writeLine("FORMAT: NM1SURNAME/FIRSTNAME TITLE[(CHD/DDMMMYY)|(INF/INFANTNAME/DDMMMYY)]", "err");
-    const [, surname, first, title, subType, infantName, dob] = m;
-    const pax = { name: `${surname}/${first} ${title}`, type: subType || "ADT" };
-    if (subType === "CHD") pax.dob = dob;
-    if (subType === "INF") pax.infant = { name: infantName, dob };
-    pnr.passengers.push(pax);
-    addHistory(pnr, `ADDED PAX ${pnr.passengers.length}`);
-    writeLine(`PAX ADDED: ${pax.name}`, "ok");
+    const upper = arg.toUpperCase();
+    const head = upper.match(/^(\d+)([A-Z'\-]+)\/(.+)$/);
+    if (!head) return writeLine("FORMAT: NM<N>SURNAME/FIRST1 TITLE1[(CHD/DDMMMYY)|(INF/INFANTNAME/DDMMMYY)][/FIRST2 TITLE2...]", "err");
+    const [, countStr, surname, rest] = head;
+    const paxRe = /([A-Z'\-]+)\s+(MRS|MSTR|MISS|MR|MS)(?:\((CHD|INF)\/?([A-Z]*)\/?(\d{1,2}[A-Z]{3}\d{0,4})\))?\/?/g;
+    const added = [];
+    let m;
+    while ((m = paxRe.exec(rest))) {
+      const [, first, title, subType, infantName, dob] = m;
+      const pax = { name: `${surname}/${first} ${title}`, type: subType || "ADT" };
+      if (subType === "CHD") pax.dob = dob;
+      if (subType === "INF") pax.infant = { name: infantName, dob };
+      pnr.passengers.push(pax);
+      added.push(pax);
+    }
+    if (!added.length) return writeLine("FORMAT: NM<N>SURNAME/FIRST1 TITLE1[(CHD/DDMMMYY)|(INF/INFANTNAME/DDMMMYY)][/FIRST2 TITLE2...]", "err");
+    addHistory(pnr, `ADDED ${added.length} PAX`);
+    added.forEach(pax => writeLine(`PAX ADDED: ${pax.name}`, "ok"));
+    const expected = parseInt(countStr, 10);
+    if (expected !== added.length) writeLine(`NOTE: NM${countStr} REQUESTED BUT ${added.length} PARSED`, "hint");
   },
   AP: (arg) => { ensurePNR().contacts.phone = arg.trim(); addHistory(ensurePNR(), "ADDED PHONE"); writeLine("PHONE ADDED", "ok"); },
   APH: (arg) => { ensurePNR().contacts.home = arg.trim(); addHistory(ensurePNR(), "ADDED HOME PHONE"); writeLine("HOME PHONE ADDED", "ok"); },
@@ -669,7 +717,7 @@ const commands = {
   },
   NU: (arg) => {
     const pnr = ensurePNR();
-    const m = arg.toUpperCase().match(/^(\d+)\/(\d+)([A-Z'\-]+)\/([A-Z'\-]+)(?:\s+(MR|MRS|MS|MSTR|MISS))?$/);
+    const m = arg.toUpperCase().match(/^(\d+)\/(\d+)([A-Z'\-]+)\/([A-Z'\-]+)(?:\s+(MRS|MSTR|MISS|MR|MS))?$/);
     if (!m) return writeLine("FORMAT: NU<OLD#>/<NEW#><SURNAME>/<FIRSTNAME> [TITLE]", "err");
     const [, oldIdx, , surname, first, title] = m;
     const pax = pnr.passengers[parseInt(oldIdx, 10) - 1];
@@ -729,6 +777,32 @@ const commands = {
     const pnr = ensurePNR();
     const a = arg.trim().toUpperCase();
     let m;
+    if (!a) {
+      if (!pnr.segments.length) return writeLine("NO SEGMENTS ON FILE", "err");
+      const scIdx = pnr.segments.findIndex(s => s.status === "SC");
+      const segIdx = scIdx !== -1 ? scIdx : 0;
+      const seg = pnr.segments[segIdx];
+      const dt = parseDDMMM(seg.date) || new Date();
+      const options = mockAvailability(dt, seg.from, seg.to, {});
+      if (!options.length) return writeLine(`NO REBOOKING OPTIONS FOUND FOR ${seg.from}-${seg.to}`, "err");
+      AMX.state.rebookOptions = { segIdx, options };
+      writeLine(`REBOOKING OPTIONS FOR SEGMENT ${segIdx + 1} (${seg.from}-${seg.to})${seg.status === "SC" ? " - SCHEDULE CHANGED" : ""}`, "ok");
+      options.forEach(l => printAvailLine(l));
+      writeLine("SELECT WITH SB<N>", "hint");
+      return;
+    }
+    if ((m = a.match(/^(\d+)$/)) && AMX.state.rebookOptions) {
+      const { segIdx, options } = AMX.state.rebookOptions;
+      const sel = options.find(o => o.line === parseInt(m[1], 10));
+      if (!sel) return writeLine("OPTION NOT FOUND", "err");
+      const leg = sel.segments[0];
+      const seg = pnr.segments[segIdx];
+      const cabin = seg.cabin;
+      Object.assign(seg, leg, { cabin, status: "HK" });
+      AMX.state.rebookOptions = null;
+      addHistory(pnr, `REBOOKED SEGMENT ${segIdx + 1} TO ${leg.carrier}${leg.flight} ${leg.date}`);
+      return writeLine(`SEGMENT ${segIdx + 1} REBOOKED TO ${leg.carrier}${leg.flight} ${leg.date} ${leg.dep}-${leg.arr}`, "ok");
+    }
     if ((m = a.match(/^([A-Z])(\d+)$/))) {
       const seg = pnr.segments[parseInt(m[2], 10) - 1];
       if (!seg) return writeLine("SEGMENT NOT FOUND", "err");
@@ -743,7 +817,7 @@ const commands = {
       addHistory(pnr, `REBOOKED SEGMENT ${m[3]} TO DATE ${m[2]}`);
       return writeLine(`SEGMENT ${m[3]} DATE CHANGED TO ${m[2]}`, "ok");
     }
-    writeLine("FORMAT: SBC<n> (CLASS) | SB<DDMMM><n> (DATE) | SBM<DDMMM><n> (DATE)", "err");
+    writeLine("FORMAT: SB (SHOW REBOOKING OPTIONS) | SB<n> (SELECT) | SBC<n> (CLASS) | SB<DDMMM><n> (DATE)", "err");
   },
   RM: (arg) => {
     const pnr = ensurePNR();
@@ -780,18 +854,22 @@ const commands = {
   FQD: (arg) => {
     const a = arg.trim().toUpperCase();
     const m = a.match(/^([A-Z]{3})([A-Z]{3})(.*)$/);
-    if (!m) return writeLine("FORMAT: FQD<FROM><TO>[/A<CARRIER>][/C<CLASS>][/D<DDMMM>][/R,-CH|/R,-INF]", "err");
+    if (!m) return writeLine("FORMAT: FQD<FROM><TO>[/A<CARRIER>][/C<CLASS>][/D<DDMMM>][/C<CCY>][/R,-CH|/R,-INF]", "err");
     const [, from, to, rest] = m;
     const tokens = rest.split("/").filter(Boolean);
-    let carrier = null, cls = null, ddmmm = null, paxType = null;
+    let carrier = null, cls = null, ddmmm = null, paxType = null, currency = null;
     tokens.forEach(t => {
       let mm;
       if ((mm = t.match(/^A([A-Z0-9]{2,3})$/))) carrier = mm[1];
+      else if ((mm = t.match(/^C([A-Z]{3})$/))) currency = mm[1];
       else if ((mm = t.match(/^C([A-Z])$/))) cls = mm[1];
       else if ((mm = t.match(/^D(\d{1,2}[A-Z]{3})$/))) ddmmm = mm[1];
       else if (t === "R,-CH") paxType = "CHD";
       else if (t === "R,-INF") paxType = "INF";
     });
+    if (currency && !CURRENCY_RATES[currency]) return writeLine(`UNKNOWN CURRENCY CODE ${currency}`, "err");
+    const rate = currency ? CURRENCY_RATES[currency] : 1;
+    const ccy = currency || "EUR";
     const routes = AMX.state.world.routes.filter(r => r[0] === from && r[1] === to && (!carrier || r[2] === carrier));
     if (!routes.length) return writeLine(`NO FARES FOUND FOR ${from}-${to}`, "err");
     const carriers = [...new Set(routes.map(r => r[2]))].slice(0, 4);
@@ -809,7 +887,7 @@ const commands = {
         let price = base * fam.mult;
         if (paxType === "CHD") price *= 0.75;
         if (paxType === "INF") price *= 0.10;
-        writeLine(`${row++}. ${c} ${fam.letter}${fam.code.charAt(0)} ${fam.code.padEnd(9)} EUR ${price.toFixed(2)}`, "hint");
+        writeLine(`${row++}. ${c} ${fam.letter}${fam.code.charAt(0)} ${fam.code.padEnd(9)} ${ccy} ${(price * rate).toFixed(2)}`, "hint");
       });
     });
   },
@@ -880,10 +958,15 @@ const commands = {
   FQN: () => {
     const pnr = ensurePNR();
     if (!pnr.fare) return writeLine("PRICE PNR FIRST (FXP)", "err");
-    writeLine("FARE RULES:", "ok");
-    writeLine(`FARE BASIS ${pnr.fare.fareBasis}  NVB${pnr.fare.nvb}  NVA${pnr.fare.nva}`, "hint");
-    writeLine(`CHANGES: ${pnr.fare.lowest ? "NOT PERMITTED" : "PERMITTED, FEE EUR 150.00"}`, "hint");
-    writeLine(`CANCELLATION: ${pnr.fare.lowest ? "NONREFUNDABLE" : "REFUNDABLE, FEE EUR 150.00"}`, "hint");
+    const restrictive = !!pnr.fare.lowest;
+    writeLine(`FARE RULES - FARE BASIS ${pnr.fare.fareBasis}`, "ok");
+    writeLine(`01 ADVANCE RES/TKT     ${restrictive ? "MUST BOOK AND TICKET 14 DAYS BEFORE DEPARTURE" : "NONE"}`, "hint");
+    writeLine(`02 MIN STAY            ${restrictive ? "SATURDAY NIGHT OR 3 DAYS, WHICHEVER LATER" : "NONE"}`, "hint");
+    writeLine(`03 MAX STAY            ${restrictive ? "1 MONTH" : "1 YEAR"}`, "hint");
+    writeLine(`04 CHANGES             ${restrictive ? "NOT PERMITTED" : "PERMITTED, FEE EUR 150.00"}`, "hint");
+    writeLine(`05 CANCELLATIONS       ${restrictive ? "NONREFUNDABLE" : "REFUNDABLE, FEE EUR 150.00"}`, "hint");
+    writeLine(`06 COMBINABILITY       ${restrictive ? "NOT COMBINABLE WITH ANY OTHER FARE" : "COMBINABLE WITHIN SAME FARE FAMILY"}`, "hint");
+    writeLine(`   VALID ${pnr.fare.nvb} THROUGH ${pnr.fare.nva}`, "hint");
   },
   FXD: (arg) => {
     const raw = arg.trim().toUpperCase();
@@ -1050,6 +1133,29 @@ const commands = {
     addHistory(pnr, `VOIDED TICKET ${ticket.number}`);
     savePNR(pnr);
     writeLine(`TICKET ${ticket.number} VOIDED`, "ok");
+  },
+  TRF: (arg) => {
+    const pnr = AMX.state.pnr;
+    if (!pnr || !pnr.tickets?.length) return writeLine("NO TICKET ON FILE", "err");
+    const a = arg.trim().toUpperCase();
+    const lMatch = a.match(/^\/L(\d+)$/);
+    const ticket = lMatch ? pnr.tickets[parseInt(lMatch[1], 10) - 1] : pnr.tickets[pnr.tickets.length - 1];
+    if (!ticket) return writeLine("FORMAT: TRF[/L<n>]", "err");
+    if (ticket.refunded) return writeLine("TICKET ALREADY REFUNDED", "err");
+    const fare = pnr.fare;
+    if (!fare) return writeLine("NO FARE ON FILE FOR THIS PNR", "err");
+    const nonRefundable = !!fare.lowest;
+    const penalty = nonRefundable ? fare.total : Math.min(150, Math.round(fare.total * 0.15 * 100) / 100);
+    const refundAmount = Math.round(Math.max(0, fare.total - penalty) * 100) / 100;
+    ticket.refunded = true;
+    ticket.refundAmount = refundAmount;
+    ticket.refundPenalty = penalty;
+    addHistory(pnr, `TRF - REFUND PROCESSED ${ticket.number} ${fare.currency} ${refundAmount.toFixed(2)} (PENALTY ${fare.currency} ${penalty.toFixed(2)})`);
+    savePNR(pnr);
+    writeLine(`REFUND QUOTE - ${ticket.number}`, "ok");
+    writeLine(`FARE PAID    ${fare.currency} ${fare.total.toFixed(2)}`, "hint");
+    writeLine(`PENALTY      ${fare.currency} ${penalty.toFixed(2)}${nonRefundable ? " (NONREFUNDABLE FARE)" : ""}`, "hint");
+    writeLine(`REFUND DUE   ${fare.currency} ${refundAmount.toFixed(2)}`, "hint");
   },
   TJQ: (arg) => {
     const a = arg.trim().toUpperCase();
@@ -1301,8 +1407,9 @@ const commands = {
     else if (/^\d+$/.test(a)) idx = parseInt(a, 10) - 1;
 
     if (idx === null) {
-      writeLine("AVAILABLE SCENARIOS - REAL CUSTOMER CALLS, START TO FINISH:", "scenario");
-      scenarios.forEach((sc, i) => writeLine(`${i + 1}. [${sc.level}] ${sc.title}`, "hint"));
+      const progress = loadProgress();
+      writeLine(`AVAILABLE SCENARIOS - REAL CUSTOMER CALLS, START TO FINISH (${progress.completed.length}/${scenarios.length} COMPLETE):`, "scenario");
+      scenarios.forEach((sc, i) => writeLine(`${i + 1}. [${sc.level}] ${sc.title}${progress.completed.includes(sc.title) ? " [DONE]" : ""}`, "hint"));
       writeLine("TYPE: TRAIN <NUMBER> TO BEGIN, HINT IF YOU'RE STUCK, TRAIN STOP TO EXIT EARLY.", "hint");
       return;
     }
@@ -1460,15 +1567,42 @@ const scenarios = [
 ];
 
 // --- BOOT & UI WIRING ---
+function levenshtein(a, b) {
+    const dp = [];
+    for (let i = 0; i <= a.length; i++) dp.push([i, ...new Array(b.length).fill(0)]);
+    for (let j = 0; j <= b.length; j++) dp[0][j] = j;
+    for (let i = 1; i <= a.length; i++) {
+        for (let j = 1; j <= b.length; j++) {
+            dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+        }
+    }
+    return dp[a.length][b.length];
+}
+function suggestCommand(verb) {
+    let best = null, bestDist = Infinity;
+    Object.keys(commands).forEach(key => {
+        if (Math.abs(verb.length - key.length) > 3) return;
+        const d = levenshtein(verb, key);
+        if (d < bestDist) { bestDist = d; best = key; }
+    });
+    return bestDist <= 2 ? best : null;
+}
 function dispatchCommand(s, verb) {
-    const commandKeys = Object.keys(commands).sort((a, b) => b.length - a.length);
-    const action = commandKeys.find(key => verb.startsWith(key));
+    try {
+        const commandKeys = Object.keys(commands).sort((a, b) => b.length - a.length);
+        const action = commandKeys.find(key => verb.startsWith(key));
 
-    if (action) {
-        const effectiveArg = s.slice(action.length).trim();
-        commands[action](effectiveArg);
-    } else {
-        writeLine("UNKNOWN COMMAND", "err");
+        if (action) {
+            const effectiveArg = s.slice(action.length).trim();
+            commands[action](effectiveArg);
+        } else {
+            writeLine("UNKNOWN COMMAND", "err");
+            const suggestion = suggestCommand(verb);
+            if (suggestion) writeLine(`DID YOU MEAN: ${suggestion}?`, "hint");
+        }
+    } catch (err) {
+        console.error(err);
+        writeLine(`SYSTEM ERROR - COMMAND FAILED (${err.message || err})`, "err");
     }
 }
 
@@ -1495,6 +1629,7 @@ function exec(raw) {
             AMX.state.training.step++;
             if (AMX.state.training.step >= AMX.state.training.scenario.steps.length) {
                 writeLine("SCENARIO COMPLETE — nicely handled. Type TRAIN for another.", "scenario");
+                markScenarioComplete(AMX.state.training.scenario.title);
                 AMX.state.training.active = false;
                 AMX.state.training.scenario = null;
             } else {
