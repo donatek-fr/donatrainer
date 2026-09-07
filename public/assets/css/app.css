@@ -38,7 +38,7 @@ body { height: 100vh; max-height: 100vh; overflow: hidden; }
   flex-shrink: 0;
   min-height: 60px;
 }
-.amx-side-logo img { height: 28px; width: auto; }
+.amx-side-logo img { height: 34px; width: auto; }
 .amx-sidebar.collapsed .amx-side-logo img { display: none; }
 .amx-side-toggle {
   background: transparent;
@@ -234,20 +234,14 @@ body { height: 100vh; max-height: 100vh; overflow: hidden; }
 
 /* ---------- Footer ---------- */
 .site-footer {
-  padding: 20px 0;
+  padding: 26px 0 22px;
   background: #080d14;
   text-align: center;
   color: #8a9cb0;
   font-size: 0.8rem;
   border-top: 1px solid var(--line-color);
 }
-.site-footer .container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 24px;
-    flex-wrap: wrap;
-}
+.site-footer .container { max-width: 720px; margin: 0 auto; padding: 0 20px; }
 .footer-link a {
     color: var(--text-color);
     text-decoration: none;
@@ -270,11 +264,20 @@ body { height: 100vh; max-height: 100vh; overflow: hidden; }
   transition: border-color 0.2s, background 0.2s, color 0.2s;
 }
 .credit-chip:hover { border-color: var(--accent-blue); background: rgba(0, 170, 255, 0.08); color: #fff; }
+.credit-chip.support { border-color: rgba(0, 170, 255, 0.4); color: var(--accent-blue); }
+.credit-chip.support:hover { background: var(--accent-blue); color: #fff; }
 .li-badge {
   display: inline-flex; align-items: center; justify-content: center;
   width: 16px; height: 16px; border-radius: 3px;
   background: #0A66C2; color: #fff; font-size: 0.6rem; font-weight: 800; letter-spacing: 0;
 }
+.gh-badge { display: inline-flex; width: 14px; height: 14px; color: currentColor; }
+.gh-badge svg { width: 100%; height: 100%; }
+
+.footer-disclaimer { max-width: 620px; margin: 0 auto 12px; line-height: 1.6; font-size: 0.78rem; color: #8a9cb0; }
+.footer-contact { margin: 0 0 10px; font-size: 0.8rem; color: #8a9cb0; }
+.footer-contact a { color: var(--accent-blue); }
+.footer-copyright { margin: 0; font-size: 0.76rem; color: #8a9cb0; opacity: 0.85; }
 
 /* ---------- Responsive ---------- */
 @media (max-width: 1200px) {
@@ -299,5 +302,4 @@ body { height: 100vh; max-height: 100vh; overflow: hidden; }
 }
 @media (max-width: 768px) {
   .amx-main { padding: 12px; }
-  .site-footer .container { flex-direction: column; gap: 10px; }
 }
