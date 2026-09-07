@@ -136,9 +136,11 @@ function baggageAllowanceFor(cabin) {
 function buildTicketPrintHTML(pnr) {
   const airline = AMX.state.world.airlines.find(a => a.code === pnr.validatingCarrier);
   const carrierName = airline ? airline.name : (pnr.validatingCarrier || "VALIDATING CARRIER NOT SET");
+  const tst = pnrTstLatest(pnr);
   const paxRows = pnr.passengers.map((p, i) => {
     const ticket = pnr.tickets.find(t => t.passengerIndex === i);
-    return `<tr><td>${p.name}</td><td>${p.type}</td><td>${ticket ? ticket.number + (ticket.voided ? " (VOID)" : "") : "NOT ISSUED"}</td></tr>`;
+    const status = ticket ? (ticket.voided ? "VOID" : "OPEN FOR USE") : "NOT ISSUED";
+    return `<tr><td>${p.name}</td><td>${p.type}</td><td>${ticket ? ticket.number : "&mdash;"}</td><td>${status}</td></tr>`;
   }).join("");
   const segRows = pnr.segments.map((s, i) => `
     <tr>
@@ -148,8 +150,8 @@ function buildTicketPrintHTML(pnr) {
     </tr>`).join("");
   const fare = pnr.fare;
   const fareRows = fare ? `
-    <tr><td>Base Fare</td><td>${fare.currency} ${fare.base.toFixed(2)}</td></tr>
-    <tr><td>Taxes &amp; Fees</td><td>${fare.currency} ${fare.taxes.toFixed(2)}</td></tr>
+    <tr><td>Fare (${tst?.fareBasis || ""})</td><td>${fare.currency} ${fare.base.toFixed(2)}</td></tr>
+    ${(tst?.taxBreakdown || []).map(tb => `<tr><td>Tax ${tb.code}</td><td>${fare.currency} ${tb.amount.toFixed(2)}</td></tr>`).join("")}
     ${pnr.markup ? `<tr><td>Agency Service Fee</td><td>${fare.currency} ${markupAmount(pnr).toFixed(2)}</td></tr>` : ""}
     ${(pnr.ancillaries || []).map(a => `<tr><td>${a.text}</td><td>${fare.currency} ${a.price.toFixed(2)}</td></tr>`).join("")}
     <tr class="total"><td>Total</td><td>${fare.currency} ${displayTotal(pnr).toFixed(2)}</td></tr>
@@ -173,6 +175,8 @@ function buildTicketPrintHTML(pnr) {
   table td, table th { padding: 6px 4px; text-align: left; border-bottom: 1px dotted #cfc6b3; }
   table.fare td:last-child { text-align: right; }
   table.fare tr.total td { border-top: 2px solid #2B2620; border-bottom: none; font-weight: bold; padding-top: 8px; }
+  .fc-line { font-size: 0.78rem; background: #f3efe4; padding: 6px 8px; border: 1px solid #cfc6b3; letter-spacing: 0.02em; margin-bottom: 6px; }
+  .endorsement { font-style: italic; margin-top: 2px; }
   .r-foot { margin-top: 24px; text-align: center; }
   .barcode { height: 34px; background: repeating-linear-gradient(90deg, #2B2620 0 2px, transparent 2px 5px); margin: 0 auto 10px; width: 80%; }
   .disclaimer { font-size: 0.68rem; color: #5b5346; line-height: 1.5; }
@@ -193,7 +197,7 @@ function buildTicketPrintHTML(pnr) {
     </div>
 
     <h2 class="r-title">Passengers &amp; Tickets</h2>
-    <table><thead><tr><th>Name</th><th>Type</th><th>Ticket Number</th></tr></thead><tbody>${paxRows || '<tr><td colspan="3">No passengers</td></tr>'}</tbody></table>
+    <table><thead><tr><th>Name</th><th>Type</th><th>Ticket Number</th><th>Status</th></tr></thead><tbody>${paxRows || '<tr><td colspan="4">No passengers</td></tr>'}</tbody></table>
 
     <h2 class="r-title">Flight Itinerary</h2>
     <table><thead><tr><th>#</th><th>Date</th><th>Flight</th><th>Cl</th><th>Route</th><th>Time</th><th>Status</th><th>Baggage</th></tr></thead><tbody>${segRows || '<tr><td colspan="8">No segments</td></tr>'}</tbody></table>
@@ -201,6 +205,13 @@ function buildTicketPrintHTML(pnr) {
     <h2 class="r-title">Fare Breakdown</h2>
     <table class="fare"><tbody>${fareRows}</tbody></table>
     <div class="sub">Form of Payment: ${fop}</div>
+
+    ${tst ? `
+    <h2 class="r-title">Fare Calculation</h2>
+    <div class="fc-line">FC ${tst.fareCalc}</div>
+    <div class="sub">Fare Basis ${tst.fareBasis} &middot; Not Valid Before ${tst.nvb} &middot; Not Valid After ${tst.nva}</div>
+    <div class="sub endorsement">${tst.endorsement}</div>
+    ` : ""}
 
     <div class="r-foot">
       <div class="barcode"></div>
@@ -344,9 +355,72 @@ function computeFare(pnr, idxList, lowest) {
   });
   const payingCount = idxList.filter(i => pnr.passengers[i].type !== "INF").length;
   const totalTaxes = 115.50 * payingCount;
-  return { currency: "EUR", base: totalBase, taxes: totalTaxes, total: totalBase + totalTaxes, scope: idxList };
+  return { currency: "EUR", base: totalBase, taxes: totalTaxes, total: totalBase + totalTaxes, scope: idxList, lowest: !!lowest };
 }
 function parsePricingScope(arg) { return arg.trim().toUpperCase().replace(/^\//, "") || null; }
+
+// --- FARE CALCULATION / TICKETING FIELDS (real-world IATA/Amadeus ticket fields) ---
+function buildFareCalcLine(pnr, fare) {
+  if (!pnr.segments.length) return `${fare.currency}${fare.base.toFixed(2)}END`;
+  const parts = [pnr.segments[0].from];
+  pnr.segments.forEach(s => { parts.push(s.carrier); parts.push(s.to); });
+  return `${parts.join(" ")} ${fare.base.toFixed(2)}${fare.currency}${fare.base.toFixed(2)}END`;
+}
+function buildTaxBreakdown(pnr, fare) {
+  if (!fare.taxes) return [];
+  const first = pnr.segments[0];
+  const last = pnr.segments[pnr.segments.length - 1];
+  const origCountry = first ? findAirport(first.from)?.country : null;
+  const destCountry = last ? findAirport(last.to)?.country : null;
+  const yq = Math.round(fare.taxes * 0.35 * 100) / 100;
+  const remaining = Math.round((fare.taxes - yq) * 100) / 100;
+  const half = Math.round((remaining / 2) * 100) / 100;
+  const otherHalf = Math.round((remaining - half) * 100) / 100;
+  return [
+    { code: origCountry || "XT", amount: half },
+    { code: destCountry || "XY", amount: otherHalf },
+    { code: "YQ", amount: yq },
+  ].filter(t => t.amount > 0);
+}
+function fareBasisCode(pnr) {
+  const cabin = pnr.segments[0]?.cabin || "Y";
+  const roundTrip = pnr.segments.length > 1 && pnr.segments[0].from === pnr.segments[pnr.segments.length - 1].to;
+  return `${cabin}${roundTrip ? "RT" : "OW"}`;
+}
+function ticketEndorsement(fare) {
+  return fare.lowest ? "NONREFUNDABLE/NO MISCONNECT GUARANTEE" : "CHANGES PERMITTED WITH FEE/REFUNDABLE";
+}
+function decorateFare(pnr, fare) {
+  fare.fareCalc = buildFareCalcLine(pnr, fare);
+  fare.fareBasis = fareBasisCode(pnr);
+  fare.taxBreakdown = buildTaxBreakdown(pnr, fare);
+  fare.endorsement = ticketEndorsement(fare);
+  fare.nvb = pnr.segments[0]?.date || "";
+  fare.nva = pnr.segments[pnr.segments.length - 1]?.date || pnr.segments[0]?.date || "";
+  return fare;
+}
+function printTicketBlock(pnr, ticket) {
+  const pax = pnr.passengers[ticket.passengerIndex];
+  const tst = (pnr.tst || []).find(t => t.id === ticket.tstId) || pnrTstLatest(pnr);
+  writeLine(`ETKT ${ticket.number}  ${ticket.voided ? "VOID" : "OPEN FOR USE"}`, ticket.voided ? "err" : "ok");
+  writeLine(`  1.${pax?.name || "UNKNOWN"}`, "hint");
+  pnr.segments.forEach((s, i) => {
+    writeLine(`  ${i + 1} O ${s.carrier} ${s.flight} ${s.cabin || ""} ${s.date} ${s.from}${s.to} ${s.status}1  ${s.dep} ${s.arr}  E  ${baggageAllowanceFor(s.cabin)}`, "hint");
+  });
+  if (tst) {
+    writeLine(`  FARE F ${tst.currency} ${tst.base.toFixed(2)}`, "hint");
+    (tst.taxBreakdown || []).forEach(tb => writeLine(`  TAX      ${tb.amount.toFixed(2)}${tb.code}`, "hint"));
+    writeLine(`  TOTAL    ${tst.currency} ${displayTotal(pnr).toFixed(2)}`, "hint");
+    writeLine(`  FC ${tst.fareCalc}`, "hint");
+    writeLine(`  FB ${tst.fareBasis}  NVB${tst.nvb}  NVA${tst.nva}`, "hint");
+    writeLine(`  FE ${tst.endorsement}`, "hint");
+  }
+  const fopText = pnr.formOfPayment
+    ? (pnr.formOfPayment.type === "CC" ? `CC ${pnr.formOfPayment.card} ****${pnr.formOfPayment.number.slice(-4)}` : pnr.formOfPayment.type)
+    : "NOT ON FILE";
+  writeLine(`  FP ${fopText}`, "hint");
+  writeLine(`  ISSUED ${ticket.issuedAt}  ${AMX.state.office}  AGENT ${AMX.state.agent}`, "hint");
+}
 
 // --- QUEUE HELPER ---
 function ensureQueue(n) {
@@ -363,15 +437,15 @@ const HELP_TOPICS = {
   NU: "NU<OLD#>/<NEW#><SURNAME>/<FIRSTNAME> [TITLE] updates a passenger's name in the active PNR.",
   SP: "SP <PAX NUMBER>[,<PAX NUMBER>...] splits the listed passengers (and the shared itinerary) into a new, unsaved PNR - save it with ER.",
   PRICING: "FXX/FXR display a fare without storing it; FXP/FXB store it as a TST (FXB also uses the lowest fare found). Add /P1, /PAX or /INF to price a subset of passengers.",
-  FXP: "FXP prices the active itinerary and stores the result as a TST. Use /P1 for passenger 1 only, /PAX for adults+children, /INF for the infant only.",
+  FXP: "FXP prices the active itinerary and stores the result as a TST, including the fare calculation (FC) line, fare basis, tax breakdown by code, and NVB/NVA validity dates. Use /P1 for passenger 1 only, /PAX for adults+children, /INF for the infant only.",
   FXD: "FXD<FROM><TO> (or FXD<N><FROM><TO>) runs the Master Pricer and returns a ranked list of fare recommendations for the city pair.",
   FQD: "FQD<FROM><TO>[/A<CARRIER>][/C<CLASS>][/D<DDMMM>][/R,-CH|/R,-INF] displays fares for a city pair without needing a PNR.",
   FQP: "FQP<FROM>/A<CARRIER>/D<DDMMM><TO>[/R,-CH|/R,-INF] prices a specific itinerary without creating a PNR. Chain a second leg with --- for a connection.",
   FP: "FP sets the form of payment: FP CASH, FP INV, or FP CC <VI|CA|AX> <CARDNUMBER>/<MMYY>. Required before ticketing.",
   FCM: "FCM-A<AMOUNT> adds a flat agency markup; FCM-C<PERCENT> adds a percentage markup. Applied on top of the priced fare when displayed or ticketed.",
   SERVICES: "FXA/FXK <DESCRIPTION> <PRICE> records an ancillary service (bag, seat upgrade, etc.) against the PNR and adds it to the displayed total.",
-  TTP: "TTP issues tickets from the active TST. Requires a validating carrier (FV) and a form of payment (FP) on file. TTP/P1, TTP/PAX and TTP/INF scope the issuance.",
-  TWD: "TWD displays the current e-ticket. TWD/L<n> selects by line, TWD/TKT<number> by ticket number, TWD/TAX shows the tax breakdown, TWH shows the ticket's history.",
+  TTP: "TTP issues tickets from the active TST. Requires a validating carrier (FV) and a form of payment (FP) on file. TTP/P1, TTP/PAX and TTP/INF scope the issuance. Each ticket prints a full coupon block: FA/segment lines, FARE/TAX/TOTAL, FC (fare calculation), FB (fare basis) with NVB/NVA, and FE (endorsement).",
+  TWD: "TWD displays the current e-ticket's full coupon block (segments, fare, FC, FB, FE). TWD/L<n> selects by line, TWD/TKT<number> by ticket number, TWD/TAX shows the tax breakdown by code, TWH shows the ticket's history.",
   TJQ: "TJQ lists issued tickets. /D-<DDMMM> filters a date, /D-<DDMMM><DDMMM> a range, /SOF/QVP-<CARRIER> an airline, /SOF/QTC-RFND voids only.",
   TRDC: "TRDC/L<n> or TRDC/TK-<number> voids an issued ticket.",
   QUEUES: "QE<n> places the active PNR on queue n. QT<n> opens a queue for browsing. QN actions the current PNR and advances. QD delays it to the bottom. QI exits. QTQ shows total counts.",
@@ -744,28 +818,34 @@ const commands = {
     if (!pnr.segments.length) return writeLine("NO SEGMENTS TO PRICE", "err");
     const idx = selectPassengersByScope(pnr, parsePricingScope(arg));
     if (!idx.length) return writeLine("NO PASSENGERS MATCH SCOPE", "err");
-    const fare = computeFare(pnr, idx, false);
+    const fare = decorateFare(pnr, computeFare(pnr, idx, false));
     pnr.fare = fare;
     pnr.tst.push({ id: pnr.tst.length + 1, ...fare, createdAt: fmt.nowDate() });
     addHistory(pnr, "PRICED PNR (FXP)");
-    writeLine(`PRICED: ${fare.currency} ${fare.total.toFixed(2)} - TST${pnr.tst.length} STORED`, "ok");
+    writeLine(`TST${pnr.tst.length} CREATED`, "ok");
+    writeLine(`FARE F ${fare.currency} ${fare.base.toFixed(2)}  FB ${fare.fareBasis}  TOTAL ${fare.currency} ${fare.total.toFixed(2)}`, "hint");
+    writeLine(`FC ${fare.fareCalc}`, "hint");
   },
   FXB: (arg) => {
     const pnr = ensurePNR();
     if (!pnr.segments.length) return writeLine("NO SEGMENTS TO PRICE", "err");
     const idx = selectPassengersByScope(pnr, parsePricingScope(arg));
     if (!idx.length) return writeLine("NO PASSENGERS MATCH SCOPE", "err");
-    const fare = computeFare(pnr, idx, true);
+    const fare = decorateFare(pnr, computeFare(pnr, idx, true));
     pnr.fare = fare;
     pnr.tst.push({ id: pnr.tst.length + 1, ...fare, createdAt: fmt.nowDate() });
     addHistory(pnr, "PRICED PNR WITH LOWEST FARE (FXB)");
-    writeLine(`LOWEST FARE STORED: ${fare.currency} ${fare.total.toFixed(2)} - TST${pnr.tst.length} STORED`, "ok");
+    writeLine(`TST${pnr.tst.length} CREATED - LOWEST FARE`, "ok");
+    writeLine(`FARE F ${fare.currency} ${fare.base.toFixed(2)}  FB ${fare.fareBasis}  TOTAL ${fare.currency} ${fare.total.toFixed(2)}`, "hint");
+    writeLine(`FC ${fare.fareCalc}`, "hint");
   },
   FQN: () => {
-    if (!ensurePNR().fare) return writeLine("PRICE PNR FIRST (FXP)", "err");
+    const pnr = ensurePNR();
+    if (!pnr.fare) return writeLine("PRICE PNR FIRST (FXP)", "err");
     writeLine("FARE RULES:", "ok");
-    writeLine("CHANGE FEE: EUR 150.00", "hint");
-    writeLine("CANCELLATION: TICKET IS NON-REFUNDABLE", "hint");
+    writeLine(`FARE BASIS ${pnr.fare.fareBasis}  NVB${pnr.fare.nvb}  NVA${pnr.fare.nva}`, "hint");
+    writeLine(`CHANGES: ${pnr.fare.lowest ? "NOT PERMITTED" : "PERMITTED, FEE EUR 150.00"}`, "hint");
+    writeLine(`CANCELLATION: ${pnr.fare.lowest ? "NONREFUNDABLE" : "REFUNDABLE, FEE EUR 150.00"}`, "hint");
   },
   FXD: (arg) => {
     const raw = arg.trim().toUpperCase();
@@ -876,8 +956,8 @@ const commands = {
     });
     addHistory(pnr, `TICKETED ${issued.length} PAX`);
     savePNR(pnr);
-    writeLine(`TICKETS ISSUED: ${issued.length}`, "ok");
-    issued.forEach(t => writeLine(`${t.number}  ${pnr.passengers[t.passengerIndex].name}`, "hint"));
+    writeLine(`TTP - ${issued.length} TICKET(S) ISSUED`, "ok");
+    issued.forEach(t => { printTicketBlock(pnr, t); AMX.state.lastTicket = t; });
   },
   "ITR/P": () => {
     const pnr = AMX.state.pnr;
@@ -894,9 +974,11 @@ const commands = {
     const pnr = AMX.state.pnr;
     if (!pnr || !pnr.tickets || !pnr.tickets.length) return writeLine("NO TICKET ON FILE", "err");
     const a = arg.trim().toUpperCase();
+    const tst = pnrTstLatest(pnr);
     if (a === "/TAX") {
       writeLine("TAX BREAKDOWN:", "ok");
-      writeLine(`TOTAL TAXES: ${pnr.fare?.currency || "EUR"} ${(pnr.fare?.taxes || 0).toFixed(2)}`, "hint");
+      (tst?.taxBreakdown || []).forEach(tb => writeLine(`  TAX      ${tb.amount.toFixed(2)}${tb.code}`, "hint"));
+      writeLine(`  TOTALTAX ${tst?.currency || "EUR"} ${(tst?.taxes || 0).toFixed(2)}`, "hint");
       return;
     }
     let ticket;
@@ -906,11 +988,7 @@ const commands = {
     else if (tMatch) ticket = pnr.tickets.find(t => t.number === tMatch[1]);
     else ticket = pnr.tickets[pnr.tickets.length - 1];
     if (!ticket) return writeLine("TICKET NOT FOUND", "err");
-    const pax = pnr.passengers[ticket.passengerIndex];
-    writeLine(`E-TICKET ${ticket.number}${ticket.voided ? " (VOID)" : ""}`, "ok");
-    writeLine(`PASSENGER: ${pax?.name || "UNKNOWN"}`, "hint");
-    pnr.segments.forEach((s, i) => writeLine(`${i + 1}. ${s.date} ${s.from}-${s.to} ${s.carrier}${s.flight} ${s.status}`, "hint"));
-    writeLine(`FARE: ${pnr.fare?.currency || ""} ${displayTotal(pnr).toFixed(2)}`, "hint");
+    printTicketBlock(pnr, ticket);
     AMX.state.lastTicket = ticket;
   },
   TWH: () => {

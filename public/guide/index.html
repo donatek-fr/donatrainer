@@ -194,9 +194,9 @@
             <div class="cmd-block"><span class="syntax">FXA / FXK &lt;description&gt; &lt;price&gt;</span><div class="desc">Record an ancillary — extra bag, seat upgrade — added straight into the total.</div></div>
             <div class="cmd-block"><span class="syntax">TTP</span><div class="desc">Issues the ticket(s). <code>TTP/P1</code>, <code>TTP/PAX</code>, <code>TTP/INF</code> scope it to specific passengers.</div></div>
           </div>
-          <p>Once issued, tickets carry a realistic number — the validating carrier's own 3-digit numeric code plus a serial, exactly the format printed on a real e-ticket.</p>
+          <p>Once issued, tickets carry a realistic number — the validating carrier's own 3-digit numeric code plus a serial, exactly the format printed on a real e-ticket. <code>TTP</code> and <code>TWD</code> print the same full coupon block a real Amadeus ticket display shows: the flight lines, <code>FARE</code>/<code>TAX</code>/<code>TOTAL</code>, the <code>FC</code> (fare calculation) line — e.g. <code>FC DOH QR LHR350.00EUR350.00END</code> — the <code>FB</code> fare basis with its <code>NVB</code>/<code>NVA</code> validity dates, and an <code>FE</code> endorsement line.</p>
           <div class="cmd-grid">
-            <div class="cmd-block"><span class="syntax">TWD / TWD/L&lt;n&gt; / TWD/TKT&lt;number&gt;</span><div class="desc">Display an e-ticket by line or by number. <code>TWD/TAX</code> shows the tax breakdown, <code>TWH</code> its history.</div></div>
+            <div class="cmd-block"><span class="syntax">TWD / TWD/L&lt;n&gt; / TWD/TKT&lt;number&gt;</span><div class="desc">Display an e-ticket's full coupon block by line or by number. <code>TWD/TAX</code> shows the tax breakdown by code (e.g. <code>GB</code>, <code>YQ</code>), <code>TWH</code> its history.</div></div>
             <div class="cmd-block"><span class="syntax">TRDC/L&lt;n&gt; / TRDC/TK-&lt;number&gt;</span><div class="desc">Void a ticket issued today.</div></div>
           </div>
         </section>
