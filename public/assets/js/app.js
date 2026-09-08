@@ -373,13 +373,14 @@ function buildLeg(date, from, to, carrier) {
     equipment: distanceKm > 5500 ? "77W" : distanceKm > 2500 ? "789" : "320",
   };
 }
-function findConnection(from, to, excludeCity) {
+function findConnection(from, to, excludeCity, airlineFilter) {
   const world = AMX.state.world;
-  const firstLegs = world.routes.filter(r => r[0] === from && r[1] !== excludeCity);
+  let firstLegs = world.routes.filter(r => r[0] === from && r[1] !== excludeCity);
+  if (airlineFilter) firstLegs = firstLegs.filter(r => r[2] === airlineFilter);
   for (const leg1 of firstLegs) {
     const hub = leg1[1];
     if (hub === to) continue;
-    const leg2 = world.routes.find(r => r[0] === hub && r[1] === to);
+    let leg2 = world.routes.find(r => r[0] === hub && r[1] === to && (!airlineFilter || r[2] === airlineFilter));
     if (leg2) return { hub, carrier1: leg1[2], carrier2: leg2[2] };
   }
   return null;
@@ -400,14 +401,15 @@ function mockAvailability(date, from, to, opts = {}) {
       for (let i = 0; i < flightCount; i++) {
         const carrier = carriers[i % carriers.length];
         const leg = buildLeg(date, from, to, carrier);
-        lines.push({ line: i + 1, connection: false, segments: [leg], from, to, carrier });
+        lines.push({ line: lines.length + 1, connection: false, segments: [leg], from, to, carrier });
       }
-    } else if (!opts.directOnly) {
-      const conn = findConnection(from, to, opts.excludeCity);
+    }
+    if (!opts.directOnly) {
+      const conn = findConnection(from, to, opts.excludeCity, opts.airlineFilter);
       if (conn) {
         const leg1 = buildLeg(date, from, conn.hub, conn.carrier1);
         const leg2 = buildLeg(date, conn.hub, to, conn.carrier2);
-        lines.push({ line: 1, connection: true, segments: [leg1, leg2], from, to, carrier: `${conn.carrier1}/${conn.carrier2}` });
+        lines.push({ line: lines.length + 1, connection: true, segments: [leg1, leg2], from, to, carrier: `${conn.carrier1}/${conn.carrier2}` });
       }
     }
     return lines;
