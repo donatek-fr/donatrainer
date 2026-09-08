@@ -89,10 +89,11 @@ sandbox.AMX.state.world = {
     { code: "DOH", city: "DOHA", name: "Hamad", country: "QA", lat: 25.2609, lon: 51.6138 },
     { code: "LHR", city: "LONDON", name: "Heathrow", country: "GB", lat: 51.4700, lon: -0.4543 },
     { code: "KWI", city: "KUWAIT CITY", name: "Kuwait Intl", country: "KW", lat: 29.2266, lon: 47.9689 },
+    { code: "SIN", city: "SINGAPORE", name: "Changi", country: "SG", lat: 1.3644, lon: 103.9915 },
   ],
-  airlines: [{ code: "QR", name: "Qatar Airways", numeric: "157" }],
-  routes: [["DOH", "LHR", "QR"], ["LHR", "DOH", "QR"], ["DOH", "KWI", "QR"], ["KWI", "DOH", "QR"]],
-  countries: [{ code: "QA", name: "QATAR" }, { code: "GB", name: "UNITED KINGDOM" }],
+  airlines: [{ code: "QR", name: "Qatar Airways", numeric: "157" }, { code: "BA", name: "British Airways", numeric: "125" }],
+  routes: [["DOH", "LHR", "QR"], ["LHR", "DOH", "QR"], ["DOH", "KWI", "QR"], ["KWI", "DOH", "QR"], ["KWI", "SIN", "QR"], ["SIN", "KWI", "QR"]],
+  countries: [{ code: "QA", name: "QATAR" }, { code: "GB", name: "UNITED KINGDOM" }, { code: "KW", name: "KUWAIT" }, { code: "SG", name: "SINGAPORE" }],
 };
 
 // --- #11 haversine sanity ---
@@ -249,6 +250,106 @@ sandbox.savePNR(filterablePnr);
 sandbox.exec("IG");
 sandbox.exec("RTNABCDE");
 assert(sandbox.AMX.state.pnr && sandbox.AMX.state.pnr.recordLocator === "NABCDE", "a locator starting with a filter-code letter (N) must still retrieve normally, not be swallowed by the RT element-filter branch");
+
+// --- GAP-04: YTH no longer requires a title, matching the manual's own NM1JONES/TOM(YTH) example ---
+sandbox.exec("IG");
+sandbox.exec("NM1JONES/TOM(YTH)");
+assert(sandbox.AMX.state.pnr.passengers[0].name === "JONES/TOM", "YTH should parse with no title, name should be JONES/TOM");
+assert(sandbox.AMX.state.pnr.passengers[0].type === "YTH", "YTH passenger type should be recorded");
+
+// --- GAP-02: codeshare - buildLeg should only set operatingCarrier when it differs from the marketing carrier ---
+const codeshareDate = sandbox.parseDDMMM("15DEC");
+const csLeg = sandbox.buildLeg(codeshareDate, "DOH", "LHR", "QR", "BA");
+assert(csLeg.operatingCarrier === "BA", "buildLeg should record a different operating carrier as a codeshare");
+const nonCsLeg = sandbox.buildLeg(codeshareDate, "DOH", "LHR", "QR", "QR");
+assert(!nonCsLeg.operatingCarrier, "buildLeg should not flag a codeshare when operating carrier equals the marketing carrier");
+
+// --- GAP-05: married segments - cancelling one leg of a connection cancels both ---
+sandbox.exec("IG");
+sandbox.exec("AN15DECDOHSIN");
+includesLine(sandbox, "CONNECTION VIA KWI", "DOH-SIN should be offered as a one-stop connection via KWI in the test world");
+sandbox.exec("SS1Y1");
+assert(sandbox.AMX.state.pnr.segments.length === 2, "selling a connection should push both married legs onto the PNR");
+assert(sandbox.AMX.state.pnr.segments[0].marriedGroup && sandbox.AMX.state.pnr.segments[0].marriedGroup === sandbox.AMX.state.pnr.segments[1].marriedGroup, "both legs of a connection should share the same marriedGroup id");
+sandbox.exec("XE1");
+assert(sandbox.AMX.state.pnr.segments.length === 0, "cancelling one married segment should cascade-cancel its linked leg too");
+includesLine(sandbox, "MARRIED SEGMENT", "XE should explain that linked married segments were cancelled together");
+
+// --- GAP-06: EMD lifecycle for ancillary services ---
+sandbox.exec("IG");
+sandbox.exec("SVC EXTRA BAG 45");
+const svcAncillary = sandbox.AMX.state.pnr.ancillaries[0];
+assert(!!svcAncillary.emdNumber, "SVC should issue an EMD number");
+assert(svcAncillary.status === "O", "a freshly issued EMD should be status O");
+assert(sandbox.ancillaryTotal(sandbox.AMX.state.pnr) === 45, "an open EMD should count toward the ancillary total");
+sandbox.exec("EMDV/L1");
+assert(sandbox.AMX.state.pnr.ancillaries[0].status === "V", "EMDV should void the EMD");
+assert(sandbox.ancillaryTotal(sandbox.AMX.state.pnr) === 0, "a voided EMD should drop out of the ancillary total");
+
+// --- GAP-07: private/corporate (UNI) fare discount via /R,U ---
+sandbox.exec("IG");
+sandbox.exec("AN15DECDOHLHR");
+sandbox.exec("SS1Y1");
+sandbox.exec("NM1PUBLICFARE/TEST MR");
+sandbox.exec("FXP");
+const publicFareBase = sandbox.AMX.state.pnr.fare.base;
+sandbox.exec("IG");
+sandbox.exec("AN15DECDOHLHR");
+sandbox.exec("SS1Y1");
+sandbox.exec("NM1UNIFARE/TEST MR");
+sandbox.exec("FXP/R,U");
+const uniFareBase = sandbox.AMX.state.pnr.fare.base;
+assert(sandbox.AMX.state.pnr.fare.uniFare === true, "FXP/R,U should flag the fare as a UNI (private/corporate) fare");
+approx(uniFareBase / publicFareBase, 0.85, 0.01, "a /R,U fare should price at ~85% of the equivalent public fare");
+
+// --- GAP-08: Company profiles are their own record, distinct from a traveler draft ---
+sandbox.exec("IG");
+sandbox.exec("PCC/DONABIL SAS");
+sandbox.exec("PIN/CORP1");
+sandbox.exec("PER");
+assert(sandbox.AMX.state.profiles["CORP1"].isCompany === true, "PCC/ should save a profile flagged isCompany");
+assert(sandbox.AMX.state.profiles["CORP1"].companyName === "DONABIL SAS", "the company profile should retain its name");
+
+// --- GAP-09: fares vary by travel-month seasonality ---
+approx(sandbox.seasonalMultiplier("15DEC"), 1.18, 0.001, "December should price at the peak-season multiplier");
+approx(sandbox.seasonalMultiplier("15JAN"), 0.92, 0.001, "January should price at the off-peak multiplier");
+
+// --- GAP-10: currency rates drift slightly (and deterministically) by date instead of being static ---
+const rateA = sandbox.dailyRate("USD", "15JAN2025");
+const rateASame = sandbox.dailyRate("USD", "15JAN2025");
+const rateB = sandbox.dailyRate("USD", "16JAN2025");
+assert(rateA === rateASame, "dailyRate should be deterministic for a repeated date");
+assert(rateA !== rateB, "dailyRate should drift across different dates");
+assert(Math.abs(rateA - rateB) / rateA < 0.05, "dailyRate's day-to-day drift should stay small");
+
+// --- ES / ESD / ESX must not collide when an office id starts with D or X
+// (e.g. DOHQR2900) - ESD/ESX are folded into the ES handler for exactly this reason. ---
+sandbox.exec("IG");
+sandbox.exec("ESDOHQR2900-N");
+assert(sandbox.AMX.state.pnr.security.some(s => s.office === "DOHQR2900" && s.mode === "N"), "an office id starting with D must still be parsed as an add, not swallowed by the ESD display shorthand");
+sandbox.exec("ESXAB1234-B");
+assert(sandbox.AMX.state.pnr.security.some(s => s.office === "XAB1234" && s.mode === "B"), "an office id starting with X must still be parsed as an add, not swallowed by the ESX cancel shorthand");
+sandbox.exec("ESD");
+includesLine(sandbox, "DOHQR2900", "bare ESD should still display the security elements added above");
+
+// --- GAP-11: PNR security is enforced, not just stored ---
+sandbox.exec("IG");
+const securedPnr = sandbox.createEmptyPNR();
+securedPnr.recordLocator = "SECRT1";
+securedPnr.passengers = [{ name: "BLOCKED/TEST", type: "ADT" }];
+securedPnr.security = [{ office: sandbox.AMX.state.office, mode: "N" }];
+sandbox.savePNR(securedPnr);
+sandbox.exec("RTSECRT1");
+includesLine(sandbox, "NOT AUTHORIZED", "RT should refuse a PNR with an N security entry for the signed-in office");
+assert(!sandbox.AMX.state.pnr || sandbox.AMX.state.pnr.recordLocator !== "SECRT1", "a security-blocked PNR should never become the active PNR");
+
+// --- GAP-12: simulated TIMATIC-style travel information ---
+sandbox.exec("TIFVGBQA");
+includesLine(sandbox, "VISA", "TIFV should print visa information");
+
+// --- HE topic list is grouped by category, not one flat wall of text ---
+sandbox.exec("HE");
+includesLine(sandbox, "PNR & BOOKING:", "bare HE should group topics under category headers");
 
 console.log(`\n${pass} passed, ${fail} failed.`);
 if (fail > 0) process.exit(1);

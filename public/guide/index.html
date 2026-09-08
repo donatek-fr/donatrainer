@@ -103,6 +103,7 @@
             <li><strong>/X&lt;CITY&gt;</strong> — exclude a connection city, e.g. <code>/XMCT</code> to avoid routing through Muscat.</li>
           </ul>
           <p class="muted">If there's no nonstop service between two cities, the terminal will offer a one-stop routing through a common hub automatically — exactly the way a real display falls back to connections.</p>
+          <p class="muted">A flight number followed by <code>*</code> is a codeshare — an <code>OPERATED BY</code> line underneath names the airline that actually flies it, the same distinction a real display makes between marketing and operating carrier.</p>
           <p><strong>Other display orders and follow-ups.</strong> <code>SN</code> is the schedule equivalent of <code>AN</code>; <code>AA</code>, <code>AD</code> and <code>AE</code> re-sort the same flights by arrival time, departure time, or elapsed flight time instead of renumbering from scratch.</p>
           <div class="cmd-grid">
             <div class="cmd-block"><span class="syntax">AC&lt;DDMMM&gt; / AC&lt;FROM&gt;&lt;TO&gt; / AC/A&lt;CARRIER&gt;</span><div class="desc">Modify the last availability display's date, city pair, or carrier without retyping the whole entry. <code>AC2</code> / <code>AC-3</code> shift the date forward/back by N days. <code>SC</code> is an identical alias for schedule follow-ups.</div></div>
@@ -169,7 +170,7 @@
             <div class="cmd-block"><span class="syntax">RT/&lt;SURNAME&gt;</span><div class="desc"><code>RT/SMITH</code> — search by surname. A partial surname (<code>RT/S</code>) returns a numbered list; pick one with <code>RT&lt;n&gt;</code>.</div></div>
             <div class="cmd-block"><span class="syntax">IR / IG</span><div class="desc"><code>IR</code> ignores unsaved changes and re-retrieves the last saved copy. <code>IG</code> just clears the screen.</div></div>
             <div class="cmd-block"><span class="syntax">RH</span><div class="desc">Full history of every entry made against the active PNR.</div></div>
-            <div class="cmd-block"><span class="syntax">XE&lt;n&gt; / XI</span><div class="desc"><code>XE2</code> cancels element number 2 from the itinerary display; <code>XI</code> clears every flight segment at once.</div></div>
+            <div class="cmd-block"><span class="syntax">XE&lt;n&gt; / XI</span><div class="desc"><code>XE2</code> cancels element number 2 from the itinerary display; <code>XI</code> clears every flight segment at once. Cancelling one leg of a connection sold together cancels both — they're married segments, same as on a real system.</div></div>
             <div class="cmd-block"><span class="syntax">SBC&lt;n&gt; / SB&lt;DDMMM&gt;&lt;n&gt;</span><div class="desc">Rebook segment <em>n</em> into a new class, or onto a new date.</div></div>
             <div class="cmd-block"><span class="syntax">SB (bare) / SB&lt;n&gt;</span><div class="desc">Bare <code>SB</code> pulls fresh availability for the disrupted segment (the schedule-changed one, if any) and numbers it. <code>SB2</code> then rebooks straight onto option 2 — no more guessing a date blind.</div></div>
             <div class="cmd-block"><span class="syntax">NU&lt;OLD#&gt;/&lt;NEW#&gt;&lt;SURNAME&gt;/&lt;FIRST&gt;</span><div class="desc">Correct a passenger's name after the fact.</div></div>
@@ -180,7 +181,7 @@
           <p><strong>History codes.</strong> <code>RH</code> tags each line with the same short element code a real Amadeus history uses — <code>[AN]</code> Added Name, <code>[AS]</code> Added a status/segment element, <code>[AT]</code> Added Ticketing Arrangement, <code>[CN]</code> Changed Name, <code>[CS]</code> Changed Status, <code>[DL]</code> Deleted Element, <code>[SP]</code> Split Party, <code>[TC]</code> Time Change, and so on — so reading a PNR's history trains you to read a real one.</p>
           <p><strong>PNR security, flight-based retrieval, and printing.</strong></p>
           <div class="cmd-grid">
-            <div class="cmd-block"><span class="syntax">ES&lt;OFFICE ID&gt;-&lt;R|B|N&gt;</span><div class="desc">Grant another office Read, Read/Write (B), or No access to the PNR. <code>ESD</code> displays the security elements, <code>ESX&lt;n&gt;</code> cancels one.</div></div>
+            <div class="cmd-block"><span class="syntax">ES&lt;OFFICE ID&gt;-&lt;R|B|N&gt;</span><div class="desc">Grant another office Read, Read/Write (B), or No access to the PNR. <code>ESD</code> displays the security elements, <code>ESX&lt;n&gt;</code> cancels one. This is actually enforced — sign into that office (<code>JI.../O&lt;OFFICEID&gt;</code>, Chapter 14) and an N entry will refuse a retrieval.</div></div>
             <div class="cmd-block"><span class="syntax">LP/&lt;CARRIER&gt;&lt;FLIGHT&gt;/&lt;DDMMM&gt;[-&lt;FROM&gt;&lt;TO&gt;]</span><div class="desc">List every saved PNR carrying that flight and date — select a passenger with <code>RT&lt;n&gt;</code>, same as any other name search.</div></div>
             <div class="cmd-block"><span class="syntax">RTN / RTA / RTG / RTJ / RTK / RTR / RTB / RTTN</span><div class="desc">With a PNR already on screen, a bare one-letter follow-up filters the redisplay to one element type — names, segments, SSR/OSI, contacts, ticketing, remarks, itinerary remarks, or ticket numbers.</div></div>
             <div class="cmd-block"><span class="syntax">WRA / WRS</span><div class="desc"><code>WRA</code> prints the entire PNR (same as <code>ITR/P</code>); <code>WRS</code> prints just the itinerary screen, no ticket receipt.</div></div>
@@ -207,7 +208,8 @@
               </tbody>
             </table>
           </div>
-          <p>All four accept a passenger scope: <code>/P1</code> (passenger 1 only), <code>/PAX</code> (adults and children), <code>/INF</code> (infant only). The fare itself is calculated from real distance and the booking class you sold — a short hop in a discounted class prices well below a long-haul in a full-fare class. <code>FXR</code> and <code>FXB</code> additionally re-check the class inventory left open on the segment and price against whichever class is actually cheapest and available, exactly like a real lowest-fare search.</p>
+          <p>All four accept a passenger scope: <code>/P1</code> (passenger 1 only), <code>/PAX</code> (adults and children), <code>/INF</code> (infant only) — and <code>/R,U</code> anywhere in the entry for a discounted private/corporate (UNI) fare. The fare itself is calculated from real distance, the booking class you sold, and the travel month's seasonality (Jul/Aug/Dec price higher, quieter months lower) — a short hop in a discounted class in February prices well below a long-haul in a full-fare class in August. <code>FXR</code> and <code>FXB</code> additionally re-check the class inventory left open on the segment and price against whichever class is actually cheapest and available, exactly like a real lowest-fare search.</p>
+          <div class="callout"><strong>Known simplification:</strong> when several fares would genuinely apply, a real system returns a numbered list and waits for <code>FXT&lt;line&gt;/P&lt;pax&gt;</code> to pick one. Here, <code>FXP</code>/<code>FXB</code> always compute and store one fare directly — <code>FXT</code> itself isn't implemented.</div>
           <div class="cmd-grid">
             <div class="cmd-block"><span class="syntax">FQD&lt;FROM&gt;&lt;TO&gt;[/A&lt;CARRIER&gt;][/D&lt;DDMMM&gt;][/C&lt;CCY&gt;]</span><div class="desc">Fare display for a city pair, no PNR required. <code>/CUSD</code>, <code>/CGBP</code>, <code>/CQAR</code> etc. re-price in another currency.</div></div>
             <div class="cmd-block"><span class="syntax">FQP&lt;FROM&gt;/A&lt;CARRIER&gt;/D&lt;DDMMM&gt;&lt;TO&gt;</span><div class="desc">Informative pricing for a specific itinerary without booking it. Chain a second leg with <code>---</code>.</div></div>
@@ -223,8 +225,8 @@
           </div>
           <p><strong>Standalone calculators</strong> that don't need a fare display first:</p>
           <div class="cmd-grid">
-            <div class="cmd-block"><span class="syntax">FQC&lt;AMOUNT&gt;&lt;CCY&gt;[/&lt;CCY2&gt;]</span><div class="desc">Convert currency, e.g. <code>FQC100GBP/USD</code>.</div></div>
-            <div class="cmd-block"><span class="syntax">FQA</span><div class="desc">The IATA rate-of-exchange table for every currency on file.</div></div>
+            <div class="cmd-block"><span class="syntax">FQC&lt;AMOUNT&gt;&lt;CCY&gt;[/&lt;CCY2&gt;][/&lt;DDMMM&gt;]</span><div class="desc">Convert currency, e.g. <code>FQC100GBP/USD</code> — add a past date for that day's rate.</div></div>
+            <div class="cmd-block"><span class="syntax">FQA[&lt;DDMMM&gt;]</span><div class="desc">The IATA rate-of-exchange table for every currency on file, for today or a given date — rates drift slightly day to day, same as a real ROE.</div></div>
             <div class="cmd-block"><span class="syntax">FQX&lt;FROM&gt;&lt;TO&gt;/&lt;KG&gt;</span><div class="desc">Excess baggage charge for a given weight on that route.</div></div>
             <div class="cmd-block"><span class="syntax">FQM&lt;FROM&gt;&lt;TO&gt;[&lt;TO2&gt;...]</span><div class="desc">Mileage calculation across one or more legs, e.g. <code>FQMDOHDXBAMM</code>.</div></div>
           </div>
@@ -245,7 +247,7 @@
             <div class="cmd-block"><span class="syntax">FP CASH / FP INV / FP CC VI 4444.../1228</span><div class="desc">Form of payment — cash, invoice, or a card with expiry.</div></div>
             <div class="cmd-block"><span class="syntax">FM &lt;AMOUNT&gt;</span><div class="desc">Agency commission on file.</div></div>
             <div class="cmd-block"><span class="syntax">FCM-A&lt;AMOUNT&gt; / FCM-C&lt;PERCENT&gt;</span><div class="desc">A flat or percentage agency markup, added to the displayed total.</div></div>
-            <div class="cmd-block"><span class="syntax">SVC &lt;description&gt; &lt;price&gt;</span><div class="desc">Record an ancillary — extra bag, seat upgrade — added straight into the total.</div></div>
+            <div class="cmd-block"><span class="syntax">SVC &lt;description&gt; &lt;price&gt;</span><div class="desc">Record an ancillary — extra bag, seat upgrade — added straight into the total. Issues its own EMD document (<code>EMD/L&lt;n&gt;</code> to view, <code>EMDV/L&lt;n&gt;</code> to void, <code>EMDR/L&lt;n&gt;</code> to refund) rather than just a line item — voiding or refunding one drops it back out of the total.</div></div>
             <div class="cmd-block"><span class="syntax">TTP</span><div class="desc">Issues the ticket(s). <code>TTP/P1</code>, <code>TTP/PAX</code>, <code>TTP/INF</code> scope it to specific passengers.</div></div>
           </div>
           <p>Once issued, tickets carry a realistic number — the validating carrier's own 3-digit numeric code plus a serial, exactly the format printed on a real e-ticket. <code>TTP</code> and <code>TWD</code> print the same full coupon block a real Amadeus ticket display shows: the flight lines, <code>FARE</code>/<code>TAX</code>/<code>TOTAL</code>, the <code>FC</code> (fare calculation) line — e.g. <code>FC DOH QR LHR350.00EUR350.00END</code> — the <code>FB</code> fare basis with its <code>NVB</code>/<code>NVA</code> validity dates, and an <code>FE</code> endorsement line.</p>
@@ -303,20 +305,22 @@
             <div class="cmd-block"><span class="syntax">QI</span><div class="desc">Exit the queue.</div></div>
             <div class="cmd-block"><span class="syntax">QTQ</span><div class="desc">Total counts across every queue.</div></div>
           </div>
-          <p class="muted">A PNR with a ticketing time limit (<code>TKTL</code>, Chapter 07) lands on queue 8 category C1 automatically the moment it's saved — try <code>QC8CA</code> after setting one.</p>
+          <p class="muted">A PNR with a ticketing time limit (<code>TKTL</code>, Chapter 07) lands on queue 8 category C1 automatically the moment it's saved — try <code>QC8CA</code> after setting one. Queue 2 works the same way for waitlists: a segment sold into a full class goes on as <code>HL</code>, and retrieving that PNR carries a chance of clearing it to <code>HK</code> and queuing it to 2 for you to action.</p>
         </section>
 
         <section class="chapter" id="profiles">
           <span class="ch-eyebrow">CHAPTER 12</span>
           <h2>Customer profiles</h2>
-          <p>A profile stores a traveler's name and contact details so they don't have to be retyped on every booking.</p>
+          <p>A profile stores a traveler's — or a company's — name and contact details so they don't have to be retyped on every booking.</p>
           <div class="cmd-grid">
             <div class="cmd-block"><span class="syntax">PM / PME / PMP</span><div class="desc">Enter, exit, or temporarily suspend profile mode (<code>PM</code> resumes it).</div></div>
-            <div class="cmd-block"><span class="syntax">PC/-&lt;PAX#&gt;</span><div class="desc">Draft a profile from a passenger already in the active PNR.</div></div>
-            <div class="cmd-block"><span class="syntax">PIN/&lt;NAME&gt; / PER / PEE</span><div class="desc">Name the draft, then save it — <code>PEE</code> saves and exits profile mode in one step.</div></div>
+            <div class="cmd-block"><span class="syntax">PC/-&lt;PAX#&gt;</span><div class="desc">Draft a traveler profile from a passenger already in the active PNR.</div></div>
+            <div class="cmd-block"><span class="syntax">PCC/&lt;NAME&gt;</span><div class="desc">Start a Company profile draft instead of a traveler one.</div></div>
+            <div class="cmd-block"><span class="syntax">PIN/&lt;NAME&gt; / PER / PEE</span><div class="desc">Name either kind of draft, then save it — <code>PEE</code> saves and exits profile mode in one step.</div></div>
             <div class="cmd-block"><span class="syntax">PI / PIR</span><div class="desc">Discard the draft, or ignore its updates and redisplay the original.</div></div>
             <div class="cmd-block"><span class="syntax">PDI/&lt;INDEX&gt; / PDN/-&lt;SURNAME&gt;</span><div class="desc">Retrieve a saved profile by index or surname.</div></div>
-            <div class="cmd-block"><span class="syntax">PD / PT</span><div class="desc"><code>PD</code> redisplays the loaded profile; <code>PT</code> transfers it into the active PNR.</div></div>
+            <div class="cmd-block"><span class="syntax">PD / PT</span><div class="desc"><code>PD</code> redisplays the loaded profile (labelled Traveler or Company); <code>PT</code> transfers a traveler profile into the active PNR.</div></div>
+            <div class="cmd-block"><span class="syntax">PCA/&lt;COMPANY INDEX&gt;</span><div class="desc">Associate the loaded traveler draft to a saved Company profile — <code>PT</code> afterwards adds a corporate remark to the PNR.</div></div>
             <div class="cmd-block"><span class="syntax">PCN/ / PBC/ / PBP/ / PCO/ / PBD/</span><div class="desc">Set the draft's company name, billing contact, billing phone, country code, and date of birth.</div></div>
           </div>
         </section>
@@ -337,7 +341,7 @@
           <h2>Session &amp; sign-in</h2>
           <p>DonaTrainer signs you in automatically, but the real transactions still work if you want the full ritual — or if you want to see what "locked out" looks like.</p>
           <div class="cmd-grid">
-            <div class="cmd-block"><span class="syntax">JI / JJ</span><div class="desc">Sign in (production or practice-training mode).</div></div>
+            <div class="cmd-block"><span class="syntax">JI / JJ</span><div class="desc">Sign in (production or practice-training mode). Add <code>/O&lt;OFFICEID&gt;</code> to switch the simulated office, e.g. <code>JI0000AA/GS/ODOHQR2900</code> — useful for testing PNR security (Chapter 07).</div></div>
             <div class="cmd-block"><span class="syntax">JO</span><div class="desc">Sign out — every command except <code>JI</code>/<code>HE</code> is refused until you sign back in.</div></div>
             <div class="cmd-block"><span class="syntax">JD</span><div class="desc">Work-area status: office, agent, sign-in state.</div></div>
             <div class="cmd-block"><span class="syntax">JB</span><div class="desc">Redisplay the welcome message.</div></div>
@@ -355,6 +359,7 @@
             <div class="cmd-block"><span class="syntax">DD / DD&lt;DDMMM&gt; / DD&lt;DDMMM&gt;/&lt;N&gt;</span><div class="desc">System time; day of week for a date; N days after (or <code>/-N</code> before) a date. <code>DD&lt;DDMMM1&gt;/&lt;DDMMM2&gt;</code> gives the number of days between two dates, and <code>DD&lt;CITY&gt;</code> estimates local time from that airport's longitude.</div></div>
             <div class="cmd-block"><span class="syntax">DF&lt;A&gt;;&lt;B&gt; / DF&lt;A&gt;-&lt;B&gt; / DF&lt;A&gt;*&lt;B&gt; / DF&lt;A&gt;/&lt;B&gt; / DF&lt;BASE&gt;P&lt;PCT&gt;</span><div class="desc">Add, subtract, multiply, divide, or apply a percentage — the terminal's built-in calculator.</div></div>
             <div class="cmd-block"><span class="syntax">TGBD-&lt;COUNTRY&gt; / TGAD-&lt;CARRIER&gt;[/&lt;CARRIER2&gt;]</span><div class="desc">BSP/Area Reporting Plan participants for a country, or a ticketing/interline agreement between two carriers.</div></div>
+            <div class="cmd-block"><span class="syntax">TIFV / TIFH / TIFA&lt;NATIONALITY&gt;&lt;DESTINATION&gt;</span><div class="desc">Simulated visa, health, or both — country or airport codes, e.g. <code>TIFVFRQA</code> (French national to Qatar). Clearly marked as simulated, not live TIMATIC data.</div></div>
           </div>
         </section>
 
@@ -393,7 +398,7 @@
                 <tr><td>FXA / FXU / FXZ / FXL</td><td>Best Buy: list lower fares / select+store TST / select, no TST / lowest regardless of availability</td></tr>
                 <tr><td>FXD</td><td>Master Pricer recommendations</td></tr>
                 <tr><td>FXX / FXR / FXP / FXB</td><td>Price (no store / lowest / store / lowest+store)</td></tr>
-                <tr><td>GG</td><td>AIS-style reference lookup (airport/country/airline)</td></tr>
+                <tr><td>GG</td><td>AIS-style reference lookup (airport / country / airline)</td></tr>
                 <tr><td>HE</td><td>Help, with an optional topic</td></tr>
                 <tr><td>IEP / IEPJ</td><td>Email the itinerary</td></tr>
                 <tr><td>IR / IG</td><td>Ignore &amp; re-retrieve / ignore</td></tr>
@@ -401,11 +406,11 @@
                 <tr><td>JI / JJ / JO / JD / JB</td><td>Sign in / practice sign-in / sign out / work-area status / welcome message</td></tr>
                 <tr><td>LP</td><td>List PNRs by flight number and date</td></tr>
                 <tr><td>MN / MY</td><td>Replay the last availability display for the next / previous day</td></tr>
-                <tr><td>NM</td><td>Passenger name (+ child/infant/youth/group)</td></tr>
+                <tr><td>NM</td><td>Passenger name (+ child / infant / youth / group)</td></tr>
                 <tr><td>NU</td><td>Update a passenger's name</td></tr>
                 <tr><td>OP</td><td>Option queue placement</td></tr>
                 <tr><td>OS</td><td>Other service information</td></tr>
-                <tr><td>PM / PME / PMP / PC / PIN / PER / PEE / PI / PIR / PDI / PDN / PD / PT / PCN / PBC / PBP / PCO / PBD</td><td>Customer profile family</td></tr>
+                <tr><td>PM / PME / PMP / PC / PCC / PCA / PIN / PER / PEE / PI / PIR / PDI / PDN / PD / PT / PCN / PBC / PBP / PCO / PBD</td><td>Customer profile family (traveler &amp; company)</td></tr>
                 <tr><td>PV</td><td>Office profile display</td></tr>
                 <tr><td>QE / QT / QS / QC / QTQ / QN / QD / QI</td><td>Queue placement, browsing (by category), counts, and totals</td></tr>
                 <tr><td>RC / RIR</td><td>Confidential remark / itinerary remark</td></tr>
@@ -414,7 +419,7 @@
                 <tr><td>RH</td><td>PNR history, tagged with element codes</td></tr>
                 <tr><td>RM</td><td>Remark</td></tr>
                 <tr><td>RRN / RRI / RRP</td><td>Copy PNR — full / itinerary only / passengers only</td></tr>
-                <tr><td>RT (+ RTN/RTA/RTG/RTJ/RTK/RTR/RTB/RTTN)</td><td>Retrieve (by locator, surname, or selection); element-filtered redisplay</td></tr>
+                <tr><td>RT (+ RTN / RTA / RTG / RTJ / RTK / RTR / RTB / RTTN)</td><td>Retrieve (by locator, surname, or selection); element-filtered redisplay</td></tr>
                 <tr><td>SB</td><td>Rebook a segment's class, date, or (bare) show rebooking options</td></tr>
                 <tr><td>SI ARNK</td><td>Arrival-unknown marker segment</td></tr>
                 <tr><td>SM / ST</td><td>Seat map / seat assignment</td></tr>
@@ -422,8 +427,9 @@
                 <tr><td>SP</td><td>Split passengers into a new PNR</td></tr>
                 <tr><td>SR</td><td>Special service request</td></tr>
                 <tr><td>SS</td><td>Sell a segment</td></tr>
-                <tr><td>SVC</td><td>Ancillary service</td></tr>
+                <tr><td>SVC / EMD / EMDV / EMDR</td><td>Ancillary service / display / void / refund its EMD</td></tr>
                 <tr><td>TGBD / TGAD</td><td>BSP participants for a country / ticketing agreement between carriers</td></tr>
+                <tr><td>TIFV / TIFH / TIFA</td><td>Simulated visa / health / both travel information</td></tr>
                 <tr><td>TJQ</td><td>Sales report</td></tr>
                 <tr><td>TKOK / TKTL / TKXL</td><td>Ticketing arrangement — none / time limit / auto-cancel limit</td></tr>
                 <tr><td>TRAIN</td><td>Start guided scenario training</td></tr>
@@ -502,9 +508,17 @@
     sections.forEach(s => s && spy.observe(s));
 
     const scrollTopBtn = document.getElementById("scrollTopBtn");
+    let pastThreshold = false;
+    let footerVisible = false;
+    function updateScrollTopBtn() { scrollTopBtn.style.display = (pastThreshold && !footerVisible) ? "block" : "none"; }
     window.onscroll = function() {
-      scrollTopBtn.style.display = (document.body.scrollTop > 200 || document.documentElement.scrollTop > 200) ? "block" : "none";
+      pastThreshold = document.body.scrollTop > 200 || document.documentElement.scrollTop > 200;
+      updateScrollTopBtn();
     };
+    const stbFooter = document.querySelector(".site-footer");
+    if (stbFooter) {
+      new IntersectionObserver((entries) => { footerVisible = entries[0].isIntersecting; updateScrollTopBtn(); }).observe(stbFooter);
+    }
     scrollTopBtn.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
   </script>
 

@@ -113,6 +113,12 @@
             <p>City/airline codes, the help system, the full command index.</p>
             <span class="go">Open chapter →</span>
           </a>
+          <a class="master-card" href="guide/index.html#payment">
+            <span class="gate-code">GATE B5</span>
+            <h3>Reissue &amp; Refunds</h3>
+            <p>Real e-ticket status codes, the full reissue chain, multi-step automated refunds, Best Buy fares.</p>
+            <span class="go">Open chapter →</span>
+          </a>
         </div>
       </div>
     </section>
@@ -227,11 +233,19 @@
 
     if (reduceMotion) { renderStatic(); } else { typeLoop(); }
 
-    // Scroll to top
+    // Scroll to top - hidden whenever the footer is in view so it never sits on top of it
     const scrollTopBtn = document.getElementById("scrollTopBtn");
+    let pastThreshold = false;
+    let footerVisible = false;
+    function updateScrollTopBtn() { scrollTopBtn.style.display = (pastThreshold && !footerVisible) ? "block" : "none"; }
     window.onscroll = function() {
-      scrollTopBtn.style.display = (document.body.scrollTop > 200 || document.documentElement.scrollTop > 200) ? "block" : "none";
+      pastThreshold = document.body.scrollTop > 200 || document.documentElement.scrollTop > 200;
+      updateScrollTopBtn();
     };
+    const stbFooter = document.querySelector(".site-footer");
+    if (stbFooter) {
+      new IntersectionObserver((entries) => { footerVisible = entries[0].isIntersecting; updateScrollTopBtn(); }).observe(stbFooter);
+    }
     scrollTopBtn.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
   </script>
 

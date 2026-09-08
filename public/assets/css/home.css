@@ -151,7 +151,7 @@ h3 { color: var(--text); font-size: 1.05rem; letter-spacing: 0; text-transform: 
 .gate-card p { color: var(--muted); font-size: 0.94rem; margin: 0; }
 
 /* Master grid (What You'll Master) */
-.master-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; max-width: var(--container); margin: 0 auto; }
+.master-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 18px; max-width: var(--container); margin: 0 auto; }
 .master-card {
   display: block;
   background: var(--panel);

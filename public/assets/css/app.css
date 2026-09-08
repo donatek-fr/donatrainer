@@ -112,6 +112,19 @@ body { height: 100vh; max-height: 100vh; overflow: hidden; background: var(--dar
 .amx-side-link:hover { background: rgba(255, 255, 255, 0.06); color: var(--accent-blue); }
 .amx-side-link.danger { color: #ff6e6e; }
 .amx-side-link.danger:hover { background: rgba(255, 110, 110, 0.12); color: #ff8a8a; }
+.amx-side-link.amx-pulse { animation: amx-pulse-glow 1.8s ease-in-out infinite; }
+.amx-side-link.amx-pulse .icon { animation: amx-pulse-ring 1.8s ease-in-out infinite; }
+@keyframes amx-pulse-glow {
+  0%, 100% { background: transparent; }
+  50% { background: rgba(46, 204, 113, 0.16); }
+}
+@keyframes amx-pulse-ring {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.5); }
+  50% { box-shadow: 0 0 0 5px rgba(46, 204, 113, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .amx-side-link.amx-pulse, .amx-side-link.amx-pulse .icon { animation: none; background: rgba(46, 204, 113, 0.16); }
+}
 .amx-sidebar.collapsed .amx-side-link { justify-content: center; }
 .amx-sidebar.collapsed .amx-side-link .label { display: none; }
 
