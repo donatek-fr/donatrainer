@@ -4,8 +4,15 @@
    - Full command coverage from the Amadeus Basic training guide: pricing/TST,
      ticketing, queues, profiles, decode/encode, rebooking, name-search retrieval.
    - Realistic flight durations & class inventory driven by real airport coords.
-   - v9.0 adds: NU, SP, FCM, FXA/FXK, waitlisting (HL), and IROPS schedule
+   - v9.0 adds: NU, SP, FCM, SVC, waitlisting (HL), and IROPS schedule
      changes auto-queued to queue 5 - closing out the README's promised features.
+   - v10.0 adds full coverage of "Amadeus Training Manual 190" Ch.1-13: sign-in,
+     AIS reference (GG), date/time & math calculators (DD/DF), schedule display
+     and direct access, open segments/ARNK/reconfirm, PNR security & copy
+     variants, the Best Buy fare family, fare-quote follow-ups, central
+     ticketing depth (TTK/FE/FT, real e-ticket status codes, TWX void, ETRV
+     revalidation), ticket reissue, multi-step automated refunds, and queue
+     categories.
 ============================================================================ */
 
 const AMX = window.AMX || (window.AMX = {});
@@ -34,6 +41,11 @@ AMX.state = {
   queueBrowse: null,
   lastTicket: null,
   rebookOptions: null,
+  signedIn: true,
+  lastAvailQuery: null,
+  bestBuyOptions: null,
+  lastFareQuote: null,
+  refundDraft: null,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -90,7 +102,7 @@ function renderItineraryHTML(pnr) {
   const contacts = pnr.contacts || {};
   const contactList = Object.entries(contacts).filter(([, v]) => v).map(([k, v]) => `<div class="mono">&bull; ${k.toUpperCase()}: ${v}</div>`).join("");
   const ancillaryList = (pnr.ancillaries || []).map(a => `<div class="mono">&bull; ${a.type} ${a.text} - EUR ${a.price.toFixed(2)}</div>`).join("");
-  const tickets = (pnr.tickets || []).map((t, i) => `<div class="mono">${i+1}. ${t.number} ${pnr.passengers[t.passengerIndex]?.name || ""}${t.voided ? " (VOID)" : ""}</div>`).join("");
+  const tickets = (pnr.tickets || []).map((t, i) => `<div class="mono">${i+1}. ${t.number} ${pnr.passengers[t.passengerIndex]?.name || ""} (${t.status || "O"} - ${ticketStatusLabel(t.status)})</div>`).join("");
   return `<div class="itinerary"><h2>Itinerary: ${pnr.recordLocator || "UNSAVED"}</h2><hr><strong>Passengers</strong>${paxList}<hr><strong>Flights</strong>${segs}<hr><strong>Contacts</strong>${contactList || '<div class="mono">NONE</div>'}<hr><strong>Fare</strong>${fare}<hr><strong>Services</strong>${ssrList}<hr><strong>Ancillaries</strong>${ancillaryList || '<div class="mono">NONE</div>'}<hr><strong>Tickets</strong>${tickets || '<div class="mono">NONE</div>'}</div>`;
 }
 
@@ -98,14 +110,34 @@ function renderItineraryHTML(pnr) {
 function createEmptyPNR() {
   return {
     recordLocator: "", passengers: [], segments: [], ssrs: [], remarks: [],
+    confidentialRemarks: [], itineraryRemarks: [],
     history: [`CREATED BY M.A. KAHAR / DONABIL SAS`], status: "ACTIVE", ancillaries: [],
     contacts: {}, tst: [], tickets: [], markup: null,
     validatingCarrier: null, formOfPayment: null, commission: null,
+    security: [], tourCode: null, endorsementOverride: null, ticketingArrangement: null,
   };
 }
 function newPNR() { AMX.state.pnr = createEmptyPNR(); return AMX.state.pnr; }
+function copyPnrVariant(mode) {
+  const pnr = ensurePNR();
+  if (!pnr.recordLocator) return writeLine("CANNOT COPY AN UNSAVED PNR", "err");
+  const newPnr = createEmptyPNR();
+  if (mode === "FULL" || mode === "ITINERARY") {
+    newPnr.segments = JSON.parse(JSON.stringify(pnr.segments));
+    newPnr.contacts = { ...pnr.contacts };
+  }
+  if (mode === "FULL" || mode === "PASSENGERS") {
+    newPnr.passengers = JSON.parse(JSON.stringify(pnr.passengers));
+    newPnr.contacts = { ...pnr.contacts };
+  }
+  newPnr.history.push(`COPIED (${mode}) FROM PNR ${pnr.recordLocator}`);
+  AMX.state.pnr = newPnr;
+  addHistory(pnr, `COPIED PNR (${mode}) TO NEW BOOKING`);
+  writeLine(`PNR COPIED (${mode}). SAVE THE NEW BOOKING WITH ER.`, "ok");
+  writeHTML(renderItineraryHTML(newPnr));
+}
 function ensurePNR() { return AMX.state.pnr || newPNR(); }
-function addHistory(pnr, text) { if (pnr) pnr.history.push(`${fmt.nowTime()} ${text}`); }
+function addHistory(pnr, text, code) { if (pnr) pnr.history.push(`${fmt.nowTime()} ${code ? "[" + code + "] " : ""}${text}`); }
 function savePNR(pnr) { if (pnr?.recordLocator) localStorage.setItem(`pnr_${pnr.recordLocator}`, JSON.stringify(pnr)); }
 function loadPNR(locator) { const data = localStorage.getItem(`pnr_${locator}`); return data ? JSON.parse(data) : null; }
 function randomLocator() {
@@ -164,7 +196,7 @@ function buildTicketPrintHTML(pnr) {
   const tst = pnrTstLatest(pnr);
   const paxRows = pnr.passengers.map((p, i) => {
     const ticket = pnr.tickets.find(t => t.passengerIndex === i);
-    const status = ticket ? (ticket.voided ? "VOID" : "OPEN FOR USE") : "NOT ISSUED";
+    const status = ticket ? ticketStatusLabel(ticket.status) : "NOT ISSUED";
     return `<tr><td>${p.name}</td><td>${p.type}</td><td>${ticket ? ticket.number : "&mdash;"}</td><td>${status}</td></tr>`;
   }).join("");
   const segRows = pnr.segments.map((s, i) => `
@@ -235,7 +267,8 @@ function buildTicketPrintHTML(pnr) {
     <h2 class="r-title">Fare Calculation</h2>
     <div class="fc-line">FC ${tst.fareCalc}</div>
     <div class="sub">Fare Basis ${tst.fareBasis} &middot; Not Valid Before ${tst.nvb} &middot; Not Valid After ${tst.nva}</div>
-    <div class="sub endorsement">${tst.endorsement}</div>
+    <div class="sub endorsement">${pnr.endorsementOverride || tst.endorsement}</div>
+    ${pnr.tourCode ? `<div class="sub">Tour Code: ${pnr.tourCode}</div>` : ""}
     ` : ""}
 
     <div class="r-foot">
@@ -258,9 +291,18 @@ function maybeTriggerIROPS(pnr) {
   const seg = pnr.segments[idx];
   if (seg.status === "SC") return false;
   seg.status = "SC";
-  addHistory(pnr, `SCHEDULE CHANGE ON SEGMENT ${idx + 1} (${seg.carrier}${seg.flight})`);
-  const q = ensureQueue("5");
-  if (pnr.recordLocator && !q.pnrs.includes(pnr.recordLocator)) q.pnrs.push(pnr.recordLocator);
+  addHistory(pnr, `SCHEDULE CHANGE ON SEGMENT ${idx + 1} (${seg.carrier}${seg.flight})`, "TC");
+  if (pnr.recordLocator) placeOnQueue("5", pnr.recordLocator, "C1");
+  if (pnr.recordLocator) savePNR(pnr);
+  return true;
+}
+function maybeExpireXL(pnr) {
+  if (!pnr || pnr.ticketingArrangement?.type !== "XL" || pnr.tickets?.length) return false;
+  const limit = parseDDMMM(pnr.ticketingArrangement.date);
+  if (!limit || new Date() <= limit) return false;
+  pnr.segments = [];
+  pnr.status = "CANCELLED";
+  addHistory(pnr, `AUTO-CANCELLED - TKXL LIMIT ${pnr.ticketingArrangement.date} PASSED WITHOUT TICKETING`, "XS");
   if (pnr.recordLocator) savePNR(pnr);
   return true;
 }
@@ -327,6 +369,8 @@ function buildLeg(date, from, to, carrier) {
     dep: `${fmt.pad(depHour)}:${fmt.pad(depMin)}`,
     arr: `${fmt.pad(arrival.hour)}:${fmt.pad(arrival.min)}${arrival.dayOffset ? "+" + arrival.dayOffset : ""}`,
     classes: randomClasses(distanceKm),
+    durationMin: duration,
+    equipment: distanceKm > 5500 ? "77W" : distanceKm > 2500 ? "789" : "320",
   };
 }
 function findConnection(from, to, excludeCity) {
@@ -371,6 +415,55 @@ function mockAvailability(date, from, to, opts = {}) {
     _rand = prevRand;
   }
 }
+function sortAvailLines(lines, mode) {
+  const arr = lines.map(l => ({ ...l }));
+  if (mode === "AD") arr.sort((a, b) => a.segments[0].dep.localeCompare(b.segments[0].dep));
+  else if (mode === "AA") arr.sort((a, b) => a.segments[a.segments.length - 1].arr.localeCompare(b.segments[b.segments.length - 1].arr));
+  else if (mode === "AE") arr.sort((a, b) => a.segments.reduce((s, l) => s + (l.durationMin || 0), 0) - b.segments.reduce((s, l) => s + (l.durationMin || 0), 0));
+  arr.forEach((l, i) => l.line = i + 1);
+  return arr;
+}
+function parseAvailArgs(arg) {
+  const upper = arg.toUpperCase().trim().replace(/^\//, "");
+  const m = upper.match(/^(\d{1,2}[A-Z]{3})([A-Z]{3})([A-Z]{3})(.*)$/);
+  if (!m) return null;
+  const [, ddmmm, from, to, rest] = m;
+  const dt = parseDDMMM(ddmmm);
+  if (!dt) return null;
+  const tokens = rest.split("/").filter(Boolean);
+  let returnDdmmm = null, airlineFilter = null, directOnly = false, classFilter = null, excludeCity = null;
+  tokens.forEach(t => {
+    let mm;
+    if ((mm = t.match(/^R(\d{1,2}[A-Z]{3})$/))) returnDdmmm = mm[1];
+    else if ((mm = t.match(/^A([A-Z0-9]{2,3})$/))) airlineFilter = mm[1];
+    else if (t === "D") directOnly = true;
+    else if ((mm = t.match(/^C([A-Z])$/))) classFilter = mm[1];
+    else if ((mm = t.match(/^X([A-Z]{3})$/))) excludeCity = mm[1];
+  });
+  return { ddmmm, from, to, dt, returnDdmmm, opts: { airlineFilter, directOnly, classFilter, excludeCity } };
+}
+function runAvailability(arg, code, label) {
+  const q = parseAvailArgs(arg);
+  if (!q) return writeLine(`FORMAT: ${code}<DDMMM><FROM><TO>[/R<DDMMM>][/A<CARRIER>][/D][/C<CLASS>][/X<CITY>]`, "err");
+  let outLines = mockAvailability(q.dt, q.from, q.to, q.opts);
+  if (!outLines.length) return writeLine(`NO FLIGHTS FOUND FOR ${q.from}-${q.to}`, "err");
+  if (["AA", "AD", "AE"].includes(code)) outLines = sortAvailLines(outLines, code);
+  AMX.state.availability.outbound = outLines;
+  AMX.state.lastAvailQuery = { code, ddmmm: q.ddmmm, from: q.from, to: q.to, opts: q.opts };
+
+  writeLine(`** AMADEUS ${label} - ${code} ** ${q.ddmmm} ${q.from}-${q.to}`, "ok");
+  outLines.forEach(l => printAvailLine(l));
+
+  if (q.returnDdmmm) {
+    const retDt = parseDDMMM(q.returnDdmmm);
+    if (!retDt) return writeLine("INVALID RETURN DATE FORMAT", "err");
+    let inLines = mockAvailability(retDt, q.to, q.from, q.opts);
+    if (["AA", "AD", "AE"].includes(code)) inLines = sortAvailLines(inLines, code);
+    AMX.state.availability.inbound = inLines;
+    writeLine(`RETURN AVAILABILITY ${q.returnDdmmm} ${q.to}-${q.from}`, "ok");
+    inLines.forEach(l => printAvailLine(l));
+  }
+}
 function printAvailLine(l) {
   if (!l.connection) {
     const leg = l.segments[0];
@@ -393,6 +486,12 @@ function selectPassengersByScope(pnr, scope) {
   return all;
 }
 const CLASS_RATE = { F: 0.42, J: 0.28, C: 0.25, D: 0.22, Y: 0.15, M: 0.12, K: 0.10, B: 0.09, H: 0.085, Q: 0.075 };
+const TICKET_STATUS_LABELS = {
+  A: "AIRPORT CONTROL", C: "CHECKED IN", E: "EXCHANGED/REISSUED", F: "FLOWN/USED",
+  G: "CONVERTED TO FIM", I: "IRREGULAR OPERATIONS", L: "LIFTED/BOARDED", O: "OPEN FOR USE",
+  P: "PRINTED", R: "REFUNDED", S: "SUSPENDED", T: "PAPER TICKET", V: "VOID", X: "PRINT EXCHANGED",
+};
+function ticketStatusLabel(status) { return TICKET_STATUS_LABELS[status] || TICKET_STATUS_LABELS.O; }
 const CURRENCY_RATES = { EUR: 1, USD: 1.08, GBP: 0.86, QAR: 3.94, AED: 3.97, SAR: 4.05, INR: 90.5, SGD: 1.46, AUD: 1.66, JPY: 163 };
 function classRate(letter) { return CLASS_RATE[letter] || 0.12; }
 function segmentDistanceKm(seg) {
@@ -477,18 +576,21 @@ function decorateFare(pnr, fare) {
 function printTicketBlock(pnr, ticket) {
   const pax = pnr.passengers[ticket.passengerIndex];
   const tst = (pnr.tst || []).find(t => t.id === ticket.tstId) || pnrTstLatest(pnr);
-  writeLine(`ETKT ${ticket.number}  ${ticket.voided ? "VOID" : "OPEN FOR USE"}`, ticket.voided ? "err" : "ok");
+  const st = ticket.status || "O";
+  writeLine(`ETKT ${ticket.number}  ${st} - ${ticketStatusLabel(st)}${ticket.reissueOf ? "  (REISSUE OF " + ticket.reissueOf + ")" : ""}`, st === "O" ? "ok" : "err");
   writeLine(`  1.${pax?.name || "UNKNOWN"}`, "hint");
   pnr.segments.forEach((s, i) => {
     writeLine(`  ${i + 1} O ${s.carrier} ${s.flight} ${s.cabin || ""} ${s.date} ${s.from}${s.to} ${s.status}1  ${s.dep} ${s.arr}  E  ${baggageAllowanceFor(s.cabin)}`, "hint");
   });
   if (tst) {
-    writeLine(`  FARE F ${tst.currency} ${tst.base.toFixed(2)}`, "hint");
+    writeLine(`  FARE F ${tst.currency} ${tst.base.toFixed(2)}${tst.netFare != null ? "  NETFARE " + tst.currency + " " + tst.netFare.toFixed(2) : ""}`, "hint");
     (tst.taxBreakdown || []).forEach(tb => writeLine(`  TAX      ${tb.amount.toFixed(2)}${tb.code}`, "hint"));
     writeLine(`  TOTAL    ${tst.currency} ${displayTotal(pnr).toFixed(2)}`, "hint");
     writeLine(`  FC ${tst.fareCalc}`, "hint");
     writeLine(`  FB ${tst.fareBasis}  NVB${tst.nvb}  NVA${tst.nva}`, "hint");
-    writeLine(`  FE ${tst.endorsement}`, "hint");
+    writeLine(`  FE ${pnr.endorsementOverride || tst.endorsement}`, "hint");
+    if (pnr.tourCode) writeLine(`  FT ${pnr.tourCode}`, "hint");
+    if (tst.additionalCollection != null) writeLine(`  ADDITIONAL COLLECTION ${tst.currency} ${tst.additionalCollection.toFixed(2)}`, "hint");
   }
   const fopText = pnr.formOfPayment
     ? (pnr.formOfPayment.type === "CC" ? `CC ${pnr.formOfPayment.card} ****${pnr.formOfPayment.number.slice(-4)}` : pnr.formOfPayment.type)
@@ -499,9 +601,17 @@ function printTicketBlock(pnr, ticket) {
 
 // --- QUEUE HELPER ---
 function ensureQueue(n) {
-  if (!AMX.state.queues[n]) AMX.state.queues[n] = { name: `QUEUE ${n}`, pnrs: [] };
+  if (!AMX.state.queues[n]) AMX.state.queues[n] = { name: `QUEUE ${n}`, pnrs: [], categories: {} };
+  if (!AMX.state.queues[n].categories) AMX.state.queues[n].categories = {};
   return AMX.state.queues[n];
 }
+function placeOnQueue(n, locator, category) {
+  const q = ensureQueue(n);
+  if (!q.pnrs.includes(locator)) q.pnrs.push(locator);
+  q.categories[locator] = category || "C1";
+  return q;
+}
+function queueCategory(q, locator) { return (q.categories && q.categories[locator]) || "C1"; }
 
 // --- HELP TOPICS ---
 const HELP_TOPICS = {
@@ -518,55 +628,193 @@ const HELP_TOPICS = {
   FQP: "FQP<FROM>/A<CARRIER>/D<DDMMM><TO>[/R,-CH|/R,-INF] prices a specific itinerary without creating a PNR. Chain a second leg with --- for a connection.",
   FP: "FP sets the form of payment: FP CASH, FP INV, or FP CC <VI|CA|AX> <CARDNUMBER>/<MMYY>. Required before ticketing.",
   FCM: "FCM-A<AMOUNT> adds a flat agency markup; FCM-C<PERCENT> adds a percentage markup. Applied on top of the priced fare when displayed or ticketed.",
-  SERVICES: "FXA/FXK <DESCRIPTION> <PRICE> records an ancillary service (bag, seat upgrade, etc.) against the PNR and adds it to the displayed total.",
+  SERVICES: "SVC <DESCRIPTION> <PRICE> records an ancillary service (bag, seat upgrade, etc.) against the PNR and adds it to the displayed total.",
+  BESTBUY: "FXA lists lower fares without rebooking; FXU<n> selects one and stores a TST; FXZ<n> selects one without storing a TST; FXL shows the lowest applicable fare regardless of availability, warning LOWEST SOLD OUT // TRY WAITLIST if it isn't actually open.",
   TTP: "TTP issues tickets from the active TST. Requires a validating carrier (FV) and a form of payment (FP) on file. TTP/P1, TTP/PAX and TTP/INF scope the issuance. Each ticket prints a full coupon block: FA/segment lines, FARE/TAX/TOTAL, FC (fare calculation), FB (fare basis) with NVB/NVA, and FE (endorsement).",
   TWD: "TWD displays the current e-ticket's full coupon block (segments, fare, FC, FB, FE). TWD/L<n> selects by line, TWD/TKT<number> by ticket number, TWD/TAX shows the tax breakdown by code, TWH shows the ticket's history.",
   TJQ: "TJQ lists issued tickets. /D-<DDMMM> filters a date, /D-<DDMMM><DDMMM> a range, /SOF/QVP-<CARRIER> an airline, /SOF/QTC-RFND voids only.",
-  TRDC: "TRDC/L<n> or TRDC/TK-<number> voids an issued ticket.",
-  QUEUES: "QE<n> places the active PNR on queue n. QT<n> opens a queue for browsing. QN actions the current PNR and advances. QD delays it to the bottom. QI exits. QTQ shows total counts.",
-  PROFILES: "PM/PME enter and exit profile mode. PC/-<n> drafts a profile from PNR passenger n. PIN/<name> names it and PER saves it. PDI/<index> or PDN/-<surname> retrieves one, PD redisplays it, PT transfers it into the active PNR.",
+  TWX: "TWX voids the ticket last displayed with TWD (or select one with /L<n> / /TKT<number>). Cannot void a reissued (status E) ticket. Prints a SAC settlement code, same as a real void.",
+  QUEUES: "QE<n>[C<c>] places the active PNR on queue n (optionally a category). QT<n>[C<c>] opens a queue for browsing, filtered to a category if given. QC<n>CA counts every category on queue n; QC<n>C<c> counts one. QN actions the current PNR and advances. QD delays it to the bottom. QI exits. QTQ shows total counts.",
+  PROFILES: "PM/PME/PMP enter, exit, and temporarily suspend profile mode. PC/-<n> drafts a profile from PNR passenger n. PIN/<name> names it and PER (or PEE to also exit) saves it. PI/PIR ignore the draft. PDI/<index> or PDN/-<surname> retrieves one, PD redisplays it, PT transfers it into the active PNR. PCN//PBC//PBP//PCO//PBD/ set company/billing/country/birth-date fields on the draft.",
   IEP: "IEP-EML-<address> emails the itinerary once; IEPJ-EML-<address> emails it for every passenger; IEP-EMLA sends it to the email already stored in the PNR (simulated - no real email is sent).",
   DECODE: "DAN <text> looks up a code from a city/airport name. DAC <code> decodes an airport or country code. DC <code> decodes a country code both ways. DNA <code> decodes an airline code to its name and numeric code.",
+  GG: "GG APT <code> / GG COU <code> / GG AIR <code> are Amadeus Information System (AIS) style reference lookups for an airport, country, or airline already on file.",
+  DATETIME: "DD alone shows the system time. DD<DDMMM> gives the day of week for a date. DD<DDMMM>/<N> and DD<DDMMM>/-<N> add or subtract N days. DD<DDMMM1>/<DDMMM2> gives the number of days between two dates. DD<CITY> estimates local time from that airport's longitude. DF<A>;<B>, DF<A>-<B>, DF<A>*<B>, DF<A>/<B> and DF<BASE>P<PERCENT> are the add/subtract/multiply/divide/percentage calculator.",
+  SIGNIN: "JI signs in (JJ for practice mode); JO signs out and blocks further commands except JI/HE until you sign back in. JD shows work-area status, JB redisplays the welcome message. RE/RE2 recall your last (or second-last) entry without re-running it. PV shows the office profile.",
+  SCHEDULE: "SN is a schedule display (like AN, but reflects every scheduled flight rather than only open inventory). AA/AD/AE re-sort the same availability by arrival, departure, or elapsed flight time. AC/SC modify the last AN/SN query's date, city, or carrier without retyping it. MN/MY replay it for the next/previous day. DO<CARRIER><FLIGHT>[/<DDMMM>] shows flight information (equipment, times, status).",
+  DIRECTACCESS: "1<CARRIER>AD<DDMMM><FROM><TO> (e.g. 1EKAD12SEPDOHDXB) opens a direct-access link straight into that carrier's own inventory, numbered from line 21 as in a real display.",
+  RECONFIRM: "<segment#>/RR reconfirms a segment (e.g. 3/RR sets segment 3 to status RR). Other status codes (HK, HL, SC, SS) work the same way.",
+  OPENSEG: "SO<CARRIER><CLASS><DDMMM><FROM><TO> adds an open segment (flight/time unknown, status OPEN) so an itinerary can still be priced and ticketed. SIARNK[<DDMMM>] adds an Arrival-Unknown marker segment to bridge a gap in the itinerary.",
+  OP: "OP[<DDMMM>]/<free text> places the active, saved PNR on the general option queue (queue 0), optionally for a specific date.",
+  FHE: "FHE<CARRIER><3-DIGIT NUMERIC><10-DIGIT DOCUMENT>[/S<SEGS>][/P<PAX#>] manually inserts a ticket number when the system didn't (or shouldn't) auto-issue one.",
+  PRINTING: "WRA prints the entire active PNR (same as ITR/P); WRS prints just the first screen (the itinerary display) without the popup ticket receipt.",
+  HISTORYCODES: "RH shows the active PNR's history, each line tagged in brackets with the same element codes a real Amadeus history uses - e.g. [AN] Added Name, [AS] Added a status/segment element, [AT] Added Ticketing Arrangement, [CN] Changed Name, [CS] Changed Status, [DL] Deleted Element, [SP] Split Party, [TC] Time Change, [OA] Added OSI, [SA] Added SSR, [AR] Added Remark, [AO] Added Option, [CF] Changed Fare Element, [AE] Added Security Element, [XE] Cancelled Security Element, [XS] Cancelled a status element.",
+  SECURITY: "ES<OFFICE ID>-<R|B|N> adds a PNR security element (Read / Read+Write / No access) for another office. ESD displays them, ESX<n> cancels one.",
+  COPY: "RRN copies the full PNR (names + itinerary) into a new, unsaved booking. RRI copies only the itinerary (add new names). RRP copies only the passengers (add a new itinerary).",
+  FAREQUOTE: "After FQD, follow-up entries reference a printed line number: FQN<n> fare rules, FQK<n> tax breakdown, FQR<n> routing, FQS<n> booking-class info. Standalone: FQC converts currency (FQC100GBP or FQC100GBP/USD), FQA lists the rate-of-exchange table, FQX<FROM><TO>/<KG> prices excess baggage, FQM<FROM><TO>[<TO2>...] calculates mileage.",
+  TICKETING: "TTK follow-up entries edit the active TST: /NF-<amt> net fare, /V<DDMMM><DDMMM> validity dates, /F<amt> fare override, /X<amt><taxcode> add a tax, /T<amt> additional collection (prefix /T<n>/ to target one TST by number). FE <text> sets the endorsement and FT <tourcode> sets the tour code, both printed on TWD/TTP/ITR-P. TTU/T<n>/S<segs> flags a TST's segments for reissue; TTF clears a TST's change flag.",
+  ETRV: "TTP/ETRV/L<n> revalidates ticket line n after a segment change with no fare impact (status stays O, no new ticket issued) - use it instead of a full reissue when nothing but the flight/date/class actually changed.",
+  REISSUE: "To reissue: rebook (SB), re-price the new segments (FXP), pull the original ticket's issue data with FO*L<n> (the line of the ticket being replaced), set the additional collection with TTK/T<amount>, then TTP as usual. The original ticket flips to status E (exchanged) and the new ticket prints a REISSUE OF line.",
+  REFUND: "TRF[/L<n>] opens a refund record for a ticket (prints fare paid and the default cancellation fee). TRFU/CP<amt>[A] adjusts the penalty (A = amount, omit for percent); TRFU/U<amt> sets the fare already used for a partial refund. TRFT shows the refundable tax breakdown. TRFP finalizes it (status becomes R). TRFIG discards the draft instead.",
+  BSP: "TGBD-<ISO country code> lists BSP/Area Reporting Plan participants for that country. TGAD-<carrier>[/<carrier2>] shows (or checks) a ticketing/interline agreement.",
+  TKTL: "TKOK confirms a ticket will be issued with no time limit. TKTL<DDMMM>/<HHMM> sets a ticketing time limit and auto-queues the PNR to queue 8 category C1 when saved. TKXL<DDMMM> auto-cancels the itinerary if it's still unticketed once that date passes (checked on retrieval).",
+  LP: "LP/<CARRIER><FLIGHT>/<DDMMM>[-<FROM><TO>] lists every saved PNR carrying that flight and date - select a passenger with RT<n> like any other name search.",
+  RTFILTER: "With a PNR already active, a bare one-letter RT follow-up filters the display to one element type: RTN/RTP names, RTA/RTI/RTW segments, RTG SSR/OSI, RTJ contacts, RTK ticketing, RTR remarks, RTB itinerary remarks, RTTN ticket numbers.",
 };
 
 // --- COMMAND IMPLEMENTATIONS ---
 const commands = {
-  // Core Booking
-  AN: (arg) => {
-    const upper = arg.toUpperCase().trim().replace(/^\//, "");
-    const m = upper.match(/^(\d{1,2}[A-Z]{3})([A-Z]{3})([A-Z]{3})(.*)$/);
-    if (!m) return writeLine("FORMAT: AN<DDMMM><FROM><TO>[/R<DDMMM>][/A<CARRIER>][/D][/C<CLASS>][/X<CITY>]", "err");
-    const [, ddmmm, from, to, rest] = m;
-    const dt = parseDDMMM(ddmmm);
-    if (!dt) return writeLine("INVALID DATE FORMAT", "err");
-
-    const tokens = rest.split("/").filter(Boolean);
-    let returnDdmmm = null, airlineFilter = null, directOnly = false, classFilter = null, excludeCity = null;
-    tokens.forEach(t => {
-      let mm;
-      if ((mm = t.match(/^R(\d{1,2}[A-Z]{3})$/))) returnDdmmm = mm[1];
-      else if ((mm = t.match(/^A([A-Z0-9]{2,3})$/))) airlineFilter = mm[1];
-      else if (t === "D") directOnly = true;
-      else if ((mm = t.match(/^C([A-Z])$/))) classFilter = mm[1];
-      else if ((mm = t.match(/^X([A-Z]{3})$/))) excludeCity = mm[1];
-    });
-
-    const opts = { airlineFilter, directOnly, classFilter, excludeCity };
-    const outLines = mockAvailability(dt, from, to, opts);
-    if (!outLines.length) return writeLine(`NO FLIGHTS FOUND FOR ${from}-${to}`, "err");
-    AMX.state.availability.outbound = outLines;
-
-    writeLine(`** AMADEUS AVAILABILITY - AN ** ${ddmmm} ${from}-${to}`, "ok");
-    outLines.forEach(l => printAvailLine(l));
-
-    if (returnDdmmm) {
-      const retDt = parseDDMMM(returnDdmmm);
-      if (!retDt) return writeLine("INVALID RETURN DATE FORMAT", "err");
-      const inLines = mockAvailability(retDt, to, from, opts);
-      AMX.state.availability.inbound = inLines;
-      writeLine(`RETURN AVAILABILITY ${returnDdmmm} ${to}-${from}`, "ok");
-      inLines.forEach(l => printAvailLine(l));
+  // Session & Reference
+  JI: (arg) => {
+    AMX.state.signedIn = true;
+    const m = arg.trim().match(/^\*?\s*([A-Z0-9]{4,7})\/([A-Z]{2})/i);
+    if (m) AMX.state.agent = m[1].toUpperCase();
+    writeLine(`SIGNED IN - OFFICE ${AMX.state.office} - AGENT ${AMX.state.agent}`, "ok");
+  },
+  JJ: (arg) => { commands.JI(arg); writeLine("PRACTICE TRAINING MODE", "hint"); },
+  JO: () => {
+    AMX.state.signedIn = false;
+    writeLine("SIGNED OUT. ENTER JI TO SIGN BACK IN.", "ok");
+  },
+  JD: () => {
+    writeLine("WORK AREA STATUS", "ok");
+    writeLine(`OFFICE ${AMX.state.office}   AGENT ${AMX.state.agent}   TM PRD   SG AS   STATUS ${AMX.state.signedIn ? "SIGNED IN" : "SIGNED OUT"}`, "hint");
+    writeLine(`DT ${fmt.nowDate()}   LG ${fmt.nowTime()}`, "hint");
+  },
+  JB: () => {
+    writeLine("WELCOME TO DONATRAINER - AN EDUCATIONAL AMADEUS GDS SIMULATOR", "ok");
+    writeLine(`OFFICE ${AMX.state.office}   AGENT ${AMX.state.agent}`, "hint");
+  },
+  RE: () => {
+    const hist = AMX.state.commandHistory;
+    if (!hist.length) return writeLine("NO PREVIOUS ENTRY", "err");
+    writeLine(`RECALL: ${hist[0]}`, "hint");
+  },
+  RE2: () => {
+    const hist = AMX.state.commandHistory;
+    if (hist.length < 2) return writeLine("NO ENTRY THAT FAR BACK", "err");
+    writeLine(`RECALL: ${hist[1]}`, "hint");
+  },
+  PV: () => {
+    writeLine(`OFFICE PROFILE - ${AMX.state.office}`, "ok");
+    writeLine(`ANC Y (TICKETING AUTHORITY)   AGT ${AMX.state.agent}   PCC TRN1`, "hint");
+  },
+  GG: (arg) => {
+    const parts = arg.trim().toUpperCase().split(/\s+/).filter(Boolean);
+    const [sub, code] = parts;
+    if (sub === "APT" && code) {
+      const a = findAirport(code);
+      if (!a) return writeLine("AIRPORT NOT FOUND", "err");
+      return writeLine(`${a.code}  ${a.city}, ${a.name} (${a.country})`, "ok");
     }
+    if (sub === "COU" && code) {
+      const c = (AMX.state.world.countries || []).find(c => c.code === code);
+      if (!c) return writeLine("COUNTRY NOT FOUND", "err");
+      return writeLine(`${c.code}  ${c.name}`, "ok");
+    }
+    if (sub === "AIR" && code) {
+      const al = AMX.state.world.airlines.find(a => a.code === code);
+      if (!al) return writeLine("AIRLINE NOT FOUND", "err");
+      const routeCount = AMX.state.world.routes.filter(r => r[2] === code).length;
+      return writeLine(`${al.name} (${al.code}/${al.numeric}) - ${routeCount} ROUTES ON FILE`, "ok");
+    }
+    writeLine("FORMAT: GG APT <CODE> | GG COU <CODE> | GG AIR <CODE>", "err");
+  },
+  DD: (arg) => {
+    const DOW = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
+    const a = arg.trim().toUpperCase();
+    if (!a) return writeLine(`SYSTEM TIME IS ${fmt.nowTime()} ON ${DOW[new Date().getDay()]}${fmt.nowDate()}`, "ok");
+    let m;
+    if ((m = a.match(/^(\d{1,2}[A-Z]{3}\d{0,4})\/(\d{1,2}[A-Z]{3}\d{0,4})$/))) {
+      const d1 = parseDDMMM(m[1]), d2 = parseDDMMM(m[2]);
+      if (!d1 || !d2) return writeLine("INVALID DATE", "err");
+      const days = Math.round((d2 - d1) / 86400000);
+      return writeLine(String(Math.abs(days)), "ok");
+    }
+    if ((m = a.match(/^(\d{1,2}[A-Z]{3}\d{0,4})\/(-?)(\d+)$/))) {
+      const d1 = parseDDMMM(m[1]);
+      if (!d1) return writeLine("INVALID DATE", "err");
+      const delta = (m[2] === "-" ? -1 : 1) * parseInt(m[3], 10);
+      const result = new Date(d1.getTime() + delta * 86400000);
+      return writeLine(`${DOW[result.getUTCDay()]}${fmtDDMMM(result)}${String(result.getUTCFullYear()).slice(-2)}`, "ok");
+    }
+    if ((m = a.match(/^(\d{1,2}[A-Z]{3}\d{0,4})$/))) {
+      const d1 = parseDDMMM(m[1]);
+      if (!d1) return writeLine("INVALID DATE", "err");
+      return writeLine(`${DOW[d1.getUTCDay()]}${fmtDDMMM(d1)}${String(d1.getUTCFullYear()).slice(-2)}`, "ok");
+    }
+    const airportMatches = AMX.state.world.airports.filter(ap => ap.city.includes(a));
+    if (airportMatches.length) {
+      const ap = airportMatches[0];
+      const offset = Math.round((ap.lon || 0) / 15);
+      const utcNow = new Date();
+      const local = new Date(utcNow.getTime() + offset * 3600000);
+      return writeLine(`${ap.city} TIME IS ${fmt.pad(local.getUTCHours())}:${fmt.pad(local.getUTCMinutes())} (UTC${offset >= 0 ? "+" : ""}${offset})`, "ok");
+    }
+    writeLine("FORMAT: DD | DD<DDMMM> | DD<DDMMM>/<N> | DD<DDMMM>/-<N> | DD<DDMMM1>/<DDMMM2> | DD<CITY>", "err");
+  },
+  DF: (arg) => {
+    const a = arg.trim().toUpperCase().replace(/\s+/g, "");
+    let m;
+    if ((m = a.match(/^(\d+(?:\.\d+)?)P(\d+(?:\.\d+)?)$/))) {
+      const [, base, pct] = m;
+      return writeLine((parseFloat(base) * (1 + parseFloat(pct) / 100)).toFixed(2), "ok");
+    }
+    if ((m = a.match(/^(\d+(?:\.\d+)?);(\d+(?:\.\d+)?)$/))) return writeLine((parseFloat(m[1]) + parseFloat(m[2])).toFixed(2), "ok");
+    if ((m = a.match(/^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)$/))) return writeLine((parseFloat(m[1]) - parseFloat(m[2])).toFixed(2), "ok");
+    if ((m = a.match(/^(\d+(?:\.\d+)?)\*(\d+(?:\.\d+)?)$/))) return writeLine((parseFloat(m[1]) * parseFloat(m[2])).toFixed(2), "ok");
+    if ((m = a.match(/^(\d+(?:\.\d+)?)\/(\d+(?:\.\d+)?)$/))) return writeLine((parseFloat(m[1]) / parseFloat(m[2])).toFixed(2), "ok");
+    writeLine("FORMAT: DF<A>;<B> (ADD) | DF<A>-<B> | DF<A>*<B> | DF<A>/<B> | DF<BASE>P<PERCENT>", "err");
+  },
+
+  // Core Booking
+  AN: (arg) => runAvailability(arg, "AN", "AVAILABILITY"),
+  SN: (arg) => runAvailability(arg, "SN", "SCHEDULE"),
+  AA: (arg) => runAvailability(arg, "AA", "AVAILABILITY - BY ARRIVAL"),
+  AD: (arg) => runAvailability(arg, "AD", "AVAILABILITY - BY DEPARTURE"),
+  AE: (arg) => runAvailability(arg, "AE", "AVAILABILITY - BY ELAPSED TIME"),
+  AC: (arg) => {
+    const last = AMX.state.lastAvailQuery;
+    if (!last) return writeLine("NO PRIOR AVAILABILITY DISPLAY TO MODIFY - USE AN FIRST", "err");
+    const a = arg.trim().toUpperCase();
+    let ddmmm = last.ddmmm, from = last.from, to = last.to, opts = { ...last.opts };
+    let m;
+    if ((m = a.match(/^(\d{1,2}[A-Z]{3})$/))) ddmmm = m[1];
+    else if ((m = a.match(/^\/\/([A-Z]{3})$/))) to = m[1];
+    else if ((m = a.match(/^([A-Z]{3})([A-Z]{3})$/))) { from = m[1]; to = m[2]; }
+    else if ((m = a.match(/^([A-Z]{3})$/))) from = m[1];
+    else if ((m = a.match(/^\/A([A-Z0-9]{2,3})$/))) opts.airlineFilter = m[1];
+    else if ((m = a.match(/^-?(\d+)$/))) { const dt = parseDDMMM(ddmmm); const delta = (a.startsWith("-") ? -1 : 1) * parseInt(m[1], 10); ddmmm = fmtDDMMM(new Date(dt.getTime() + delta * 86400000)); }
+    else return writeLine("FORMAT: AC<DDMMM> | AC<FROM><TO> | AC//<TO> | AC/A<CARRIER> | AC<N> | AC-<N>", "err");
+    runAvailability(`${ddmmm}${from}${to}`, last.code, "AVAILABILITY (MODIFIED)");
+  },
+  SC: (arg) => commands.AC(arg),
+  MN: () => {
+    const last = AMX.state.lastAvailQuery;
+    if (!last) return writeLine("NO PRIOR AVAILABILITY DISPLAY - USE AN FIRST", "err");
+    const dt = parseDDMMM(last.ddmmm);
+    const nextDay = fmtDDMMM(new Date(dt.getTime() + 86400000));
+    runAvailability(`${nextDay}${last.from}${last.to}`, last.code, "AVAILABILITY (NEXT DAY)");
+  },
+  MY: () => {
+    const last = AMX.state.lastAvailQuery;
+    if (!last) return writeLine("NO PRIOR AVAILABILITY DISPLAY - USE AN FIRST", "err");
+    const dt = parseDDMMM(last.ddmmm);
+    const prevDay = fmtDDMMM(new Date(dt.getTime() - 86400000));
+    runAvailability(`${prevDay}${last.from}${last.to}`, last.code, "AVAILABILITY (PREVIOUS DAY)");
+  },
+  DO: (arg) => {
+    const m = arg.trim().toUpperCase().match(/^([A-Z0-9]{2,3})(\d{1,4})(?:\/(\d{1,2}[A-Z]{3}))?$/);
+    if (!m) return writeLine("FORMAT: DO<CARRIER><FLIGHT>[/<DDMMM>]", "err");
+    const [, carrier, flight, ddmmm] = m;
+    const airline = AMX.state.world.airlines.find(a => a.code === carrier);
+    if (!airline) return writeLine("UNKNOWN CARRIER CODE", "err");
+    const route = AMX.state.world.routes.find(r => r[2] === carrier);
+    if (!route) return writeLine("NO FLIGHT INFORMATION AVAILABLE FOR THIS CARRIER", "err");
+    const dt = ddmmm ? parseDDMMM(ddmmm) : new Date();
+    const leg = buildLeg(dt, route[0], route[1], carrier);
+    writeLine(`FLIGHT INFORMATION - ${carrier}${flight} ${ddmmm || fmt.nowDate()}`, "ok");
+    writeLine(`${route[0]}-${route[1]}  DEP ${leg.dep}  ARR ${leg.arr}  EQP ${leg.equipment}  STATUS ON TIME`, "hint");
   },
   SS: (arg) => {
     const parts = arg.toUpperCase().split("*");
@@ -599,28 +847,48 @@ const commands = {
     const head = upper.match(/^(\d+)([A-Z'\-]+)\/(.+)$/);
     if (!head) return writeLine("FORMAT: NM<N>SURNAME/FIRST1 TITLE1[(CHD/DDMMMYY)|(INF/INFANTNAME/DDMMMYY)][/FIRST2 TITLE2...]", "err");
     const [, countStr, surname, rest] = head;
-    const paxRe = /([A-Z'\-]+)\s+(MRS|MSTR|MISS|MR|MS)(?:\((CHD|INF)\/?([A-Z]*)\/?(\d{1,2}[A-Z]{3}\d{0,4})\))?\/?/g;
+    const paxRe = /([A-Z'\-]+)\s+(MRS|MSTR|MISS|MR|MS)(?:\((CHD|INF|YTH)\/?([A-Z]*)\/?(\d{1,2}[A-Z]{3}\d{0,4})?\))?\/?/g;
     const added = [];
     let m;
     while ((m = paxRe.exec(rest))) {
       const [, first, title, subType, infantName, dob] = m;
       const pax = { name: `${surname}/${first} ${title}`, type: subType || "ADT" };
       if (subType === "CHD") pax.dob = dob;
+      if (subType === "YTH") { /* youth fare - no extra data needed */ }
       if (subType === "INF") pax.infant = { name: infantName, dob };
       pnr.passengers.push(pax);
       added.push(pax);
     }
     if (!added.length) return writeLine("FORMAT: NM<N>SURNAME/FIRST1 TITLE1[(CHD/DDMMMYY)|(INF/INFANTNAME/DDMMMYY)][/FIRST2 TITLE2...]", "err");
-    addHistory(pnr, `ADDED ${added.length} PAX`);
+    addHistory(pnr, `ADDED ${added.length} PAX`, "AN");
     added.forEach(pax => writeLine(`PAX ADDED: ${pax.name}`, "ok"));
     const expected = parseInt(countStr, 10);
     if (expected !== added.length) writeLine(`NOTE: NM${countStr} REQUESTED BUT ${added.length} PARSED`, "hint");
   },
-  AP: (arg) => { ensurePNR().contacts.phone = arg.trim(); addHistory(ensurePNR(), "ADDED PHONE"); writeLine("PHONE ADDED", "ok"); },
-  APH: (arg) => { ensurePNR().contacts.home = arg.trim(); addHistory(ensurePNR(), "ADDED HOME PHONE"); writeLine("HOME PHONE ADDED", "ok"); },
-  APM: (arg) => { ensurePNR().contacts.mobile = arg.trim(); addHistory(ensurePNR(), "ADDED MOBILE PHONE"); writeLine("MOBILE PHONE ADDED", "ok"); },
+  AP: (arg) => { ensurePNR().contacts.phone = arg.trim(); addHistory(ensurePNR(), "ADDED PHONE", "AP"); writeLine("PHONE ADDED", "ok"); },
+  APH: (arg) => { ensurePNR().contacts.home = arg.trim(); addHistory(ensurePNR(), "ADDED HOME PHONE", "AP"); writeLine("HOME PHONE ADDED", "ok"); },
+  APM: (arg) => { ensurePNR().contacts.mobile = arg.trim(); addHistory(ensurePNR(), "ADDED MOBILE PHONE", "AP"); writeLine("MOBILE PHONE ADDED", "ok"); },
   APE: (arg) => { ensurePNR().contacts.email = arg.trim(); addHistory(ensurePNR(), "ADDED EMAIL"); writeLine("EMAIL ADDED", "ok"); },
-  TKOK: () => { ensurePNR().remarks.push("TKOK"); addHistory(ensurePNR(), `ADDED TKOK`); writeLine("TICKETING TIME LIMIT: OK", "ok"); },
+  TKOK: () => { const pnr = ensurePNR(); pnr.remarks.push("TKOK"); pnr.ticketingArrangement = { type: "OK" }; addHistory(pnr, `ADDED TKOK`, "AT"); writeLine("TICKETING ARRANGEMENT: OK (NO TIME LIMIT)", "ok"); },
+  TKTL: (arg) => {
+    const m = arg.trim().toUpperCase().match(/^(\d{1,2}[A-Z]{3})\/(\d{3,4})$/);
+    if (!m) return writeLine("FORMAT: TKTL<DDMMM>/<HHMM>", "err");
+    const pnr = ensurePNR();
+    pnr.ticketingArrangement = { type: "TL", date: m[1], time: m[2] };
+    pnr.remarks.push(`TKTL${m[1]}/${m[2]}`);
+    const q = ensureQueue("8");
+    addHistory(pnr, `ADDED TKTL ${m[1]}/${m[2]} - QUEUED TO 8/C1`, "AT");
+    writeLine(`TICKET TIME LIMIT ${m[1]}/${m[2]} - AUTO-QUEUED TO QUEUE 8 CATEGORY C1 ON SAVE`, "ok");
+  },
+  TKXL: (arg) => {
+    const m = arg.trim().toUpperCase().match(/^(\d{1,2}[A-Z]{3})$/);
+    if (!m) return writeLine("FORMAT: TKXL<DDMMM>", "err");
+    const pnr = ensurePNR();
+    pnr.ticketingArrangement = { type: "XL", date: m[1] };
+    pnr.remarks.push(`TKXL${m[1]}`);
+    addHistory(pnr, `ADDED TKXL ${m[1]} - AUTO-CANCEL IF UNTICKETED PAST THIS DATE`, "AT");
+    writeLine(`TICKETING TIME LIMIT XL SET: ITINERARY AUTO-CANCELS AFTER ${m[1]} IF UNTICKETED`, "ok");
+  },
   RF: (arg) => { const who = arg.trim() || AMX.state.agent; ensurePNR().remarks.push(`RF ${who}`); addHistory(ensurePNR(), `ADDED RF ${who}`); writeLine("RECEIVED FROM ADDED", "ok"); },
   ER: () => {
     const pnr = ensurePNR();
@@ -628,8 +896,10 @@ const commands = {
     if (!pnr.recordLocator) pnr.recordLocator = randomLocator();
     addHistory(pnr, `SAVED PNR`);
     savePNR(pnr);
+    if (pnr.ticketingArrangement?.type === "TL") placeOnQueue("8", pnr.recordLocator, "C1");
     writeLine(`PNR SAVED: ${pnr.recordLocator}`, "ok");
   },
+  EF: () => commands.ER(),
 
   // PNR Servicing
   RT: (arg) => {
@@ -639,14 +909,31 @@ const commands = {
       if (AMX.state.pnr) return writeHTML(renderItineraryHTML(AMX.state.pnr));
       return writeLine("NO ACTIVE PNR", "err");
     }
+    const filterCodes = { A: "SEGMENTS", I: "SEGMENTS", W: "SEGMENTS", N: "NAMES", P: "NAMES", G: "SSR", J: "CONTACTS", K: "TICKETING", R: "REMARKS", B: "ITINERARY REMARKS", TN: "TICKET NUMBERS" };
+    if ((filterCodes[upper] || upper === "TN") && AMX.state.pnr) {
+      const pnr = AMX.state.pnr;
+      const kind = filterCodes[upper];
+      writeLine(`PNR ELEMENTS - ${kind}`, "ok");
+      if (kind === "SEGMENTS") pnr.segments.forEach((s, i) => writeLine(`${i + 1}. ${s.date} ${s.from}${s.to} ${s.carrier}${s.flight} ${s.status}`, "hint"));
+      else if (kind === "NAMES") pnr.passengers.forEach((p, i) => writeLine(`${i + 1}. ${p.name}`, "hint"));
+      else if (kind === "SSR") (pnr.ssrs || []).forEach(s => writeLine(`SSR ${s.type} ${s.text}`, "hint"));
+      else if (kind === "CONTACTS") Object.entries(pnr.contacts || {}).forEach(([k, v]) => v && writeLine(`${k.toUpperCase()}: ${v}`, "hint"));
+      else if (kind === "TICKETING") writeLine(pnr.ticketingArrangement ? JSON.stringify(pnr.ticketingArrangement) : "NO TICKETING ARRANGEMENT ON FILE", "hint");
+      else if (kind === "REMARKS") pnr.remarks.forEach(r => writeLine(r, "hint"));
+      else if (kind === "ITINERARY REMARKS") (pnr.itineraryRemarks || []).forEach(r => writeLine(r, "hint"));
+      else if (kind === "TICKET NUMBERS") (pnr.tickets || []).forEach(t => writeLine(`${t.number}  ${t.status || "O"}`, "hint"));
+      return;
+    }
     if (/^\d{1,2}$/.test(upper) && AMX.state.nameSearchResults && AMX.state.nameSearchResults.length) {
       const sel = AMX.state.nameSearchResults[parseInt(upper, 10) - 1];
       if (!sel) return writeLine("SELECTION NOT FOUND", "err");
       const pnr = loadPNR(sel.locator);
       AMX.state.pnr = pnr;
       AMX.state.nameSearchResults = null;
-      const disrupted = maybeTriggerIROPS(pnr);
+      const expired = maybeExpireXL(pnr);
+      const disrupted = !expired && maybeTriggerIROPS(pnr);
       writeLine(`PNR ${sel.locator} RETRIEVED`, "ok");
+      if (expired) writeLine("ITINERARY AUTO-CANCELLED - TICKETING TIME LIMIT (TKXL) PASSED", "err");
       if (disrupted) writeLine("SCHEDULE CHANGE DETECTED - PNR AUTO-QUEUED TO QUEUE 5", "err");
       return writeHTML(renderItineraryHTML(pnr));
     }
@@ -664,8 +951,10 @@ const commands = {
       if (results.length === 1) {
         const pnr = loadPNR(results[0].locator);
         AMX.state.pnr = pnr;
-        const disrupted = maybeTriggerIROPS(pnr);
+        const expired = maybeExpireXL(pnr);
+        const disrupted = !expired && maybeTriggerIROPS(pnr);
         writeLine(`PNR ${results[0].locator} RETRIEVED`, "ok");
+        if (expired) writeLine("ITINERARY AUTO-CANCELLED - TICKETING TIME LIMIT (TKXL) PASSED", "err");
         if (disrupted) writeLine("SCHEDULE CHANGE DETECTED - PNR AUTO-QUEUED TO QUEUE 5", "err");
         return writeHTML(renderItineraryHTML(pnr));
       }
@@ -678,8 +967,10 @@ const commands = {
     if (pnr) {
       AMX.state.pnr = pnr;
       AMX.state.nameSearchResults = null;
-      const disrupted = maybeTriggerIROPS(pnr);
+      const expired = maybeExpireXL(pnr);
+      const disrupted = !expired && maybeTriggerIROPS(pnr);
       writeLine(`PNR ${upper} RETRIEVED`, "ok");
+      if (expired) writeLine("ITINERARY AUTO-CANCELLED - TICKETING TIME LIMIT (TKXL) PASSED", "err");
       if (disrupted) writeLine("SCHEDULE CHANGE DETECTED - PNR AUTO-QUEUED TO QUEUE 5", "err");
       writeHTML(renderItineraryHTML(pnr));
     } else {
@@ -695,25 +986,53 @@ const commands = {
     }
   },
   IG: () => { AMX.state.pnr = null; AMX.state.nameSearchResults = null; writeLine("IGNORED.", "ok"); },
-  RRN: () => {
+  RRN: () => copyPnrVariant("FULL"),
+  RRI: () => copyPnrVariant("ITINERARY"),
+  RRP: () => copyPnrVariant("PASSENGERS"),
+  ES: (arg) => {
     const pnr = ensurePNR();
-    if (!pnr.recordLocator) return writeLine("CANNOT COPY AN UNSAVED PNR", "err");
-    const newPnr = JSON.parse(JSON.stringify(pnr));
-    newPnr.recordLocator = "";
-    newPnr.passengers = [];
-    newPnr.tickets = [];
-    newPnr.tst = [];
-    newPnr.status = "COPIED";
-    AMX.state.pnr = newPnr;
-    addHistory(pnr, `COPIED PNR TO NEW BOOKING`);
-    writeLine(`PNR COPIED. ADD NEW NAMES AND SAVE WITH ER.`, "ok");
-    writeHTML(renderItineraryHTML(newPnr));
+    const m = arg.trim().toUpperCase().match(/^([A-Z0-9]{4,9})-([RBN])$/);
+    if (!m) return writeLine("FORMAT: ES<OFFICE ID>-<R|B|N>", "err");
+    pnr.security.push({ office: m[1], mode: m[2] });
+    addHistory(pnr, `ADDED PNR SECURITY FOR ${m[1]} (${m[2]})`, "AE");
+    writeLine(`SECURITY ELEMENT ADDED: ${m[1]} - ${{ R: "READ ACCESS", B: "READ/WRITE ACCESS", N: "NO ACCESS" }[m[2]]}`, "ok");
+  },
+  ESD: () => {
+    const pnr = AMX.state.pnr;
+    if (!pnr || !pnr.security.length) return writeLine("NO SECURITY ELEMENTS ON FILE", "hint");
+    writeLine("PNR SECURITY ELEMENTS", "ok");
+    pnr.security.forEach((s, i) => writeLine(`${i + 1}. ${s.office} - ${s.mode}`, "hint"));
+  },
+  ESX: (arg) => {
+    const pnr = ensurePNR();
+    const n = parseInt(arg.trim(), 10);
+    if (!pnr.security[n - 1]) return writeLine("SECURITY ELEMENT NOT FOUND", "err");
+    pnr.security.splice(n - 1, 1);
+    addHistory(pnr, `CANCELLED SECURITY ELEMENT ${n}`, "XE");
+    writeLine(`SECURITY ELEMENT ${n} CANCELLED`, "ok");
   },
   RH: () => {
     const pnr = AMX.state.pnr;
     if (!pnr) return writeLine("NO ACTIVE PNR", "err");
     writeLine(`HISTORY FOR ${pnr.recordLocator || "UNSAVED PNR"}`, "ok");
     pnr.history.forEach(h => writeLine(h, "hint"));
+  },
+  LP: (arg) => {
+    const m = arg.trim().toUpperCase().match(/^\/([A-Z0-9]{2,3})(\d{1,4})\/(\d{1,2}[A-Z]{3})(?:-([A-Z]{3})([A-Z]{3}))?$/);
+    if (!m) return writeLine("FORMAT: LP/<CARRIER><FLIGHT>/<DDMMM>[-<FROM><TO>]", "err");
+    const [, carrier, flight, ddmmm, from, to] = m;
+    const results = [];
+    allStoredPNRs().forEach(pnr => {
+      pnr.segments.forEach(s => {
+        if (s.carrier === carrier && s.flight === flight && s.date === ddmmm && (!from || (s.from === from && s.to === to))) {
+          (pnr.passengers || []).forEach(p => results.push({ locator: pnr.recordLocator, name: p.name }));
+        }
+      });
+    });
+    if (!results.length) return writeLine("NO PNRS FOUND FOR THIS FLIGHT", "err");
+    AMX.state.nameSearchResults = results;
+    writeLine(`${carrier}${flight} ${ddmmm} - ${results.length} PASSENGER(S) - SELECT WITH RT<N>`, "ok");
+    results.forEach((r, i) => writeLine(`${i + 1}. ${r.name}  ${r.locator}`, "hint"));
   },
   NU: (arg) => {
     const pnr = ensurePNR();
@@ -725,7 +1044,7 @@ const commands = {
     const oldName = pax.name;
     const existingTitle = pax.name.split(" ").pop();
     pax.name = `${surname}/${first} ${title || existingTitle}`;
-    addHistory(pnr, `UPDATED NAME ${oldName} -> ${pax.name}`);
+    addHistory(pnr, `UPDATED NAME ${oldName} -> ${pax.name}`, "CN");
     writeLine(`NAME UPDATED: ${pax.name}`, "ok");
   },
   SP: (arg) => {
@@ -741,7 +1060,7 @@ const commands = {
     if (!keptPax.length) return writeLine("CANNOT SPLIT ALL PASSENGERS OUT OF A PNR - LEAVE AT LEAST ONE", "err");
 
     pnr.passengers = keptPax;
-    addHistory(pnr, `SPLIT ${movedPax.length} PAX TO NEW PNR`);
+    addHistory(pnr, `SPLIT ${movedPax.length} PAX TO NEW PNR`, "SP");
     if (pnr.recordLocator) savePNR(pnr);
 
     const newPnr = createEmptyPNR();
@@ -763,14 +1082,14 @@ const commands = {
     else if (item.kind === "SEG") pnr.segments.splice(item.idx, 1);
     else if (item.kind === "SSR") pnr.ssrs.splice(item.idx, 1);
     else if (item.kind === "RM") pnr.remarks.splice(item.idx, 1);
-    addHistory(pnr, `CANCELLED ELEMENT ${n}`);
+    addHistory(pnr, `CANCELLED ELEMENT ${n}`, "DL");
     writeLine(`ELEMENT ${n} CANCELLED`, "ok");
   },
   XI: () => {
     const pnr = ensurePNR();
     if (!pnr.segments.length) return writeLine("NO ITINERARY TO CANCEL", "err");
     pnr.segments = [];
-    addHistory(pnr, "CANCELLED ALL ITINERARY ELEMENTS");
+    addHistory(pnr, "CANCELLED ALL ITINERARY ELEMENTS", "XS");
     writeLine("ITINERARY CANCELLED", "ok");
   },
   SB: (arg) => {
@@ -800,21 +1119,21 @@ const commands = {
       const cabin = seg.cabin;
       Object.assign(seg, leg, { cabin, status: "HK" });
       AMX.state.rebookOptions = null;
-      addHistory(pnr, `REBOOKED SEGMENT ${segIdx + 1} TO ${leg.carrier}${leg.flight} ${leg.date}`);
+      addHistory(pnr, `REBOOKED SEGMENT ${segIdx + 1} TO ${leg.carrier}${leg.flight} ${leg.date}`, "CS");
       return writeLine(`SEGMENT ${segIdx + 1} REBOOKED TO ${leg.carrier}${leg.flight} ${leg.date} ${leg.dep}-${leg.arr}`, "ok");
     }
     if ((m = a.match(/^([A-Z])(\d+)$/))) {
       const seg = pnr.segments[parseInt(m[2], 10) - 1];
       if (!seg) return writeLine("SEGMENT NOT FOUND", "err");
       seg.cabin = m[1];
-      addHistory(pnr, `REBOOKED SEGMENT ${m[2]} INTO CLASS ${m[1]}`);
+      addHistory(pnr, `REBOOKED SEGMENT ${m[2]} INTO CLASS ${m[1]}`, "CS");
       return writeLine(`SEGMENT ${m[2]} REBOOKED TO CLASS ${m[1]}`, "ok");
     }
     if ((m = a.match(/^(M?)(\d{1,2}[A-Z]{3})(\d+)$/))) {
       const seg = pnr.segments[parseInt(m[3], 10) - 1];
       if (!seg) return writeLine("SEGMENT NOT FOUND", "err");
       seg.date = m[2];
-      addHistory(pnr, `REBOOKED SEGMENT ${m[3]} TO DATE ${m[2]}`);
+      addHistory(pnr, `REBOOKED SEGMENT ${m[3]} TO DATE ${m[2]}`, "TC");
       return writeLine(`SEGMENT ${m[3]} DATE CHANGED TO ${m[2]}`, "ok");
     }
     writeLine("FORMAT: SB (SHOW REBOOKING OPTIONS) | SB<n> (SELECT) | SBC<n> (CLASS) | SB<DDMMM><n> (DATE)", "err");
@@ -826,19 +1145,34 @@ const commands = {
     const m = text.match(/^\/(\w+)\s+(.*)$/);
     if (m) { tag = `[${m[1].toUpperCase()}] `; text = m[2]; }
     pnr.remarks.push(`${tag}${text.toUpperCase()}`);
-    addHistory(pnr, "ADDED REMARK");
+    addHistory(pnr, "ADDED REMARK", "AR");
     writeLine("REMARK ADDED", "ok");
+  },
+  RC: (arg) => {
+    const pnr = ensurePNR();
+    pnr.confidentialRemarks.push(arg.trim().toUpperCase());
+    addHistory(pnr, "ADDED CONFIDENTIAL REMARK", "AR");
+    writeLine("CONFIDENTIAL REMARK ADDED (VISIBLE ONLY IN THIS OFFICE)", "ok");
+  },
+  RIR: (arg) => {
+    const pnr = ensurePNR();
+    const m = arg.match(/^(.*)\/S(\d+)$/i);
+    const text = (m ? m[1] : arg).trim().toUpperCase();
+    const segNum = m ? m[2] : null;
+    pnr.itineraryRemarks.push(segNum ? `${text} /S${segNum}` : text);
+    addHistory(pnr, "ADDED ITINERARY REMARK", "AR");
+    writeLine("ITINERARY REMARK ADDED - PRINTS ON THE CLIENT ITINERARY", "ok");
   },
   OS: (arg) => {
     const pnr = ensurePNR();
     pnr.remarks.push(`OSI ${arg.trim().toUpperCase()}`);
-    addHistory(pnr, "ADDED OSI");
+    addHistory(pnr, "ADDED OSI", "OA");
     writeLine("OTHER SERVICE INFORMATION ADDED", "ok");
   },
   FFN: (arg) => {
     const pnr = ensurePNR();
     pnr.ssrs.push({ type: "FQTV", text: arg.trim().toUpperCase() });
-    addHistory(pnr, "ADDED FREQUENT FLYER NUMBER");
+    addHistory(pnr, "ADDED FREQUENT FLYER NUMBER", "SA");
     writeLine("FREQUENT FLYER NUMBER ADDED", "ok");
   },
   SR: (arg) => {
@@ -846,8 +1180,52 @@ const commands = {
     const m = arg.trim().match(/^([A-Za-z]+)\s*(.*)$/);
     if (!m) return writeLine("FORMAT: SR <TYPE> <FREE TEXT>", "err");
     pnr.ssrs.push({ type: m[1].toUpperCase(), text: m[2].trim().toUpperCase() });
-    addHistory(pnr, `ADDED SSR ${m[1].toUpperCase()}`);
+    addHistory(pnr, `ADDED SSR ${m[1].toUpperCase()}`, "SA");
     writeLine(`SSR ${m[1].toUpperCase()} ADDED`, "ok");
+  },
+  SO: (arg) => {
+    const pnr = ensurePNR();
+    const m = arg.trim().toUpperCase().match(/^([A-Z0-9]{2,3})([A-Z])(\d{1,2}[A-Z]{3})([A-Z]{3})([A-Z]{3})$/);
+    if (!m) return writeLine("FORMAT: SO<CARRIER><CLASS><DDMMM><FROM><TO>", "err");
+    const [, carrier, cls, ddmmm, from, to] = m;
+    pnr.segments.push({ date: ddmmm, from, to, carrier, flight: "OPEN", dep: "OPEN", arr: "OPEN", classes: `${cls}9`, cabin: cls, status: "OPEN", seats: [] });
+    addHistory(pnr, `ADDED OPEN SEGMENT ${carrier} ${from}-${to}`, "AS");
+    writeLine(`OPEN SEGMENT ADDED: ${carrier} ${cls} ${ddmmm} ${from}-${to}`, "ok");
+  },
+  SI: (arg) => {
+    const a = arg.trim().toUpperCase();
+    const m = a.match(/^ARNK(\d{1,2}[A-Z]{3})?$/);
+    if (!m) return writeLine("FORMAT: SIARNK[<DDMMM>]", "err");
+    const pnr = ensurePNR();
+    pnr.segments.push({ date: m[1] || "", from: "ARNK", to: "ARNK", carrier: "", flight: "", dep: "", arr: "", classes: "", status: "ARNK", seats: [] });
+    addHistory(pnr, "ADDED ARRIVAL UNKNOWN SEGMENT", "AS");
+    writeLine("ARNK SEGMENT ADDED - MAINTAINS ITINERARY CONTINUITY", "ok");
+  },
+  OP: (arg) => {
+    const m = arg.match(/^(?:(\d{1,2}[A-Z]{3})\/)?(.*)$/i);
+    const pnr = AMX.state.pnr;
+    if (!pnr?.recordLocator) return writeLine("PNR MUST BE SAVED (ER) BEFORE QUEUING", "err");
+    placeOnQueue("0", pnr.recordLocator, "C1");
+    addHistory(pnr, `OPTION QUEUED${m[1] ? " FOR " + m[1] : ""}${m[2] ? ": " + m[2].trim().toUpperCase() : ""}`, "AO");
+    writeLine(`OPTION ELEMENT ADDED - QUEUED TO QUEUE 0${m[1] ? " ON " + m[1] : ""}`, "ok");
+  },
+  FHE: (arg) => {
+    const pnr = AMX.state.pnr;
+    const m = arg.trim().toUpperCase().match(/^([A-Z]{2,3})(\d{3})(\d{10})(?:\/S[\d,-]+)?(?:\/P(\d+))?$/);
+    if (!pnr || !m) return writeLine("FORMAT: FHE<CARRIER><3-DIGIT NUMERIC><10-DIGIT DOCUMENT>[/S<SEGS>][/P<PAX#>]", "err");
+    const [, carrier, numeric, doc, paxNum] = m;
+    const paxIndex = paxNum ? parseInt(paxNum, 10) - 1 : 0;
+    const ticket = { number: `${numeric}-${doc}`, passengerIndex: paxIndex, carrier, issuedAt: fmt.nowDate(), status: "O", manual: true };
+    pnr.tickets.push(ticket);
+    addHistory(pnr, `MANUALLY INSERTED TICKET NUMBER ${ticket.number}`, "AT");
+    writeLine(`TICKET NUMBER ${ticket.number} MANUALLY INSERTED`, "ok");
+  },
+  WRA: () => commands["ITR/P"](),
+  WRS: () => {
+    const pnr = AMX.state.pnr;
+    if (!pnr) return writeLine("NO ACTIVE PNR TO PRINT", "err");
+    writeHTML(renderItineraryHTML(pnr));
+    writeLine("FIRST SCREEN SENT TO PRINTER (SIMULATED)", "ok");
   },
 
   // Pricing & Ticketing
@@ -880,6 +1258,7 @@ const commands = {
       { code: "BUSINESS", mult: 3.2, letter: "C" },
     ];
     let row = 1;
+    const rows = [];
     carriers.forEach(c => {
       const base = 220 + (from.charCodeAt(0) + to.charCodeAt(0)) % 180;
       families.forEach(fam => {
@@ -887,9 +1266,12 @@ const commands = {
         let price = base * fam.mult;
         if (paxType === "CHD") price *= 0.75;
         if (paxType === "INF") price *= 0.10;
-        writeLine(`${row++}. ${c} ${fam.letter}${fam.code.charAt(0)} ${fam.code.padEnd(9)} ${ccy} ${(price * rate).toFixed(2)}`, "hint");
+        writeLine(`${row}. ${c} ${fam.letter}${fam.code.charAt(0)} ${fam.code.padEnd(9)} ${ccy} ${(price * rate).toFixed(2)}`, "hint");
+        rows.push({ line: row, carrier: c, letter: fam.letter, famCode: fam.code, price: price * rate, ccy, from, to, direct: routes.some(r => r[2] === c) });
+        row++;
       });
     });
+    AMX.state.lastFareQuote = { from, to, rows };
   },
   FQP: (arg) => {
     const a = arg.trim().toUpperCase();
@@ -955,9 +1337,20 @@ const commands = {
     writeLine(`FARE F ${fare.currency} ${fare.base.toFixed(2)}  FB ${fare.fareBasis}  TOTAL ${fare.currency} ${fare.total.toFixed(2)}`, "hint");
     writeLine(`FC ${fare.fareCalc}`, "hint");
   },
-  FQN: () => {
+  FQN: (arg) => {
+    const n = arg.trim().match(/^(\d+)/);
+    if (n) {
+      const row = AMX.state.lastFareQuote?.rows.find(r => r.line === parseInt(n[1], 10));
+      if (!row) return writeLine("FARE LINE NOT FOUND - RUN FQD FIRST", "err");
+      const restrictive = row.letter === "K";
+      writeLine(`FARE RULES - LINE ${row.line} - ${row.carrier} ${row.letter}${row.famCode.charAt(0)} ${row.famCode}`, "ok");
+      writeLine(`01 ADVANCE RES/TKT     ${restrictive ? "MUST BOOK AND TICKET 14 DAYS BEFORE DEPARTURE" : "NONE"}`, "hint");
+      writeLine(`04 CHANGES             ${restrictive ? "NOT PERMITTED" : "PERMITTED, FEE " + row.ccy + " 150.00"}`, "hint");
+      writeLine(`05 CANCELLATIONS       ${restrictive ? "NONREFUNDABLE" : "REFUNDABLE, FEE " + row.ccy + " 150.00"}`, "hint");
+      return;
+    }
     const pnr = ensurePNR();
-    if (!pnr.fare) return writeLine("PRICE PNR FIRST (FXP)", "err");
+    if (!pnr.fare) return writeLine("PRICE PNR FIRST (FXP), OR USE FQN<LINE#> AFTER FQD", "err");
     const restrictive = !!pnr.fare.lowest;
     writeLine(`FARE RULES - FARE BASIS ${pnr.fare.fareBasis}`, "ok");
     writeLine(`01 ADVANCE RES/TKT     ${restrictive ? "MUST BOOK AND TICKET 14 DAYS BEFORE DEPARTURE" : "NONE"}`, "hint");
@@ -967,6 +1360,68 @@ const commands = {
     writeLine(`05 CANCELLATIONS       ${restrictive ? "NONREFUNDABLE" : "REFUNDABLE, FEE EUR 150.00"}`, "hint");
     writeLine(`06 COMBINABILITY       ${restrictive ? "NOT COMBINABLE WITH ANY OTHER FARE" : "COMBINABLE WITHIN SAME FARE FAMILY"}`, "hint");
     writeLine(`   VALID ${pnr.fare.nvb} THROUGH ${pnr.fare.nva}`, "hint");
+  },
+  FQK: (arg) => {
+    const n = parseInt(arg.trim(), 10);
+    const row = AMX.state.lastFareQuote?.rows.find(r => r.line === n);
+    if (!row) return writeLine("FARE LINE NOT FOUND - RUN FQD FIRST", "err");
+    const yq = Math.round(row.price * 0.08 * 100) / 100;
+    const other = Math.round(row.price * 0.04 * 100) / 100;
+    writeLine(`TAX BREAKDOWN - LINE ${row.line}`, "ok");
+    writeLine(`YQ  ${row.ccy} ${yq.toFixed(2)}`, "hint");
+    writeLine(`XT  ${row.ccy} ${other.toFixed(2)}`, "hint");
+  },
+  FQR: (arg) => {
+    const n = parseInt(arg.trim(), 10);
+    const row = AMX.state.lastFareQuote?.rows.find(r => r.line === n);
+    if (!row) return writeLine("FARE LINE NOT FOUND - RUN FQD FIRST", "err");
+    writeLine(`ROUTING - LINE ${row.line}`, "ok");
+    writeLine(row.direct ? `${row.from} ${row.carrier} ${row.to} - DIRECT ROUTING` : `${row.from} ${row.carrier} VIA HUB ${row.to} - CONNECTING ROUTING`, "hint");
+  },
+  FQS: (arg) => {
+    const n = parseInt(arg.trim(), 10);
+    const row = AMX.state.lastFareQuote?.rows.find(r => r.line === n);
+    if (!row) return writeLine("FARE LINE NOT FOUND - RUN FQD FIRST", "err");
+    writeLine(`BOOKING CLASS INFORMATION - LINE ${row.line}`, "ok");
+    writeLine(`${row.carrier}  ${row.letter} = ${row.famCode}`, "hint");
+  },
+  FQC: (arg) => {
+    const m = arg.trim().toUpperCase().match(/^(\d+(?:\.\d+)?)([A-Z]{3})(?:\/([A-Z]{3}))?$/);
+    if (!m) return writeLine("FORMAT: FQC<AMOUNT><CCY>[/<CCY2>]", "err");
+    const [, amountStr, from, to] = m;
+    if (!CURRENCY_RATES[from]) return writeLine(`UNKNOWN CURRENCY CODE ${from}`, "err");
+    const toCcy = to || "EUR";
+    if (!CURRENCY_RATES[toCcy]) return writeLine(`UNKNOWN CURRENCY CODE ${toCcy}`, "err");
+    const nuc = parseFloat(amountStr) / CURRENCY_RATES[from];
+    const converted = nuc * CURRENCY_RATES[toCcy];
+    writeLine(`${amountStr}${from} = ${converted.toFixed(2)}${toCcy}`, "ok");
+  },
+  FQA: (arg) => {
+    writeLine("IATA RATE OF EXCHANGE (BASE EUR)", "ok");
+    Object.keys(CURRENCY_RATES).forEach(ccy => writeLine(`${ccy.padEnd(4)} ${CURRENCY_RATES[ccy].toFixed(4)}`, "hint"));
+  },
+  FQX: (arg) => {
+    const m = arg.trim().toUpperCase().match(/^([A-Z]{3})([A-Z]{3})\/(\d+)(?:\/([A-Z0-9]{2,3}))?$/);
+    if (!m) return writeLine("FORMAT: FQX<FROM><TO>/<KG>[/<CARRIER>]", "err");
+    const [, from, to, kg] = m;
+    const a = findAirport(from), b = findAirport(to);
+    if (!a || !b) return writeLine("UNKNOWN AIRPORT CODE", "err");
+    const distanceKm = haversineKm(a.lat, a.lon, b.lat, b.lon);
+    const perKg = distanceKm > 3500 ? 12 : distanceKm > 1500 ? 8 : 5;
+    const charge = perKg * parseInt(kg, 10);
+    writeLine(`EXCESS BAGGAGE CHARGE ${from}-${to} FOR ${kg}KG: EUR ${charge.toFixed(2)}`, "ok");
+  },
+  FQM: (arg) => {
+    const codes = arg.trim().toUpperCase().match(/[A-Z]{3}/g) || [];
+    if (codes.length < 2) return writeLine("FORMAT: FQM<FROM><TO>[<TO2>...] (E.G. FQMDOHDXBAMM)", "err");
+    let totalKm = 0;
+    for (let i = 0; i < codes.length - 1; i++) {
+      const a = findAirport(codes[i]), b = findAirport(codes[i + 1]);
+      if (!a || !b) return writeLine(`UNKNOWN AIRPORT CODE ${!a ? codes[i] : codes[i + 1]}`, "err");
+      totalKm += haversineKm(a.lat, a.lon, b.lat, b.lon);
+    }
+    const miles = Math.round(totalKm * 0.621371);
+    writeLine(`${codes.join("-")}  MILEAGE: ${miles} MILES`, "ok");
   },
   FXD: (arg) => {
     const raw = arg.trim().toUpperCase();
@@ -1023,32 +1478,86 @@ const commands = {
     addHistory(pnr, `SET AGENCY MARKUP ${m[1]}${m[2]}`);
     writeLine(`AGENCY MARKUP SET: ${m[1] === "A" ? "EUR " + m[2] : m[2] + "%"}`, "ok");
   },
-  FXA: (arg) => {
+  SVC: (arg) => {
     const pnr = ensurePNR();
     const m = arg.trim().match(/^(.*)\s+(\d+(?:\.\d+)?)$/);
-    if (!m) return writeLine("FORMAT: FXA <DESCRIPTION> <PRICE>", "err");
+    if (!m) return writeLine("FORMAT: SVC <DESCRIPTION> <PRICE>", "err");
     const price = parseFloat(m[2]);
-    pnr.ancillaries.push({ type: "FXA", text: m[1].trim().toUpperCase(), price });
-    addHistory(pnr, `ADDED ANCILLARY FXA ${m[1].trim().toUpperCase()} (${price.toFixed(2)})`);
+    pnr.ancillaries.push({ type: "SVC", text: m[1].trim().toUpperCase(), price });
+    addHistory(pnr, `ADDED ANCILLARY SERVICE ${m[1].trim().toUpperCase()} (${price.toFixed(2)})`);
     writeLine(`ANCILLARY ADDED: ${m[1].trim().toUpperCase()} - EUR ${price.toFixed(2)}`, "ok");
   },
-  FXK: (arg) => {
+  FXA: (arg) => {
     const pnr = ensurePNR();
-    const m = arg.trim().match(/^(.*)\s+(\d+(?:\.\d+)?)$/);
-    if (!m) return writeLine("FORMAT: FXK <DESCRIPTION> <PRICE>", "err");
-    const price = parseFloat(m[2]);
-    pnr.ancillaries.push({ type: "FXK", text: m[1].trim().toUpperCase(), price });
-    addHistory(pnr, `ADDED ANCILLARY FXK ${m[1].trim().toUpperCase()} (${price.toFixed(2)})`);
-    writeLine(`ANCILLARY ADDED: ${m[1].trim().toUpperCase()} - EUR ${price.toFixed(2)}`, "ok");
+    if (!pnr.segments.length) return writeLine("NO SEGMENTS TO PRICE", "err");
+    const idx = selectPassengersByScope(pnr, parsePricingScope(arg));
+    if (!idx.length) return writeLine("NO PASSENGERS MATCH SCOPE", "err");
+    const options = pnr.segments.map((seg, i) => {
+      const cheapest = cheapestAvailableClass(seg);
+      return { segIdx: i, cabin: cheapest, fare: computeFare(pnr, idx, true) };
+    }).filter(o => o.cabin !== pnr.segments[o.segIdx].cabin);
+    if (!options.length) return writeLine("NO LOWER FARES FOUND - ALREADY ON THE LOWEST AVAILABLE CLASS", "hint");
+    AMX.state.bestBuyOptions = { idx, options };
+    writeLine("BEST BUY - LOWER FARES AVAILABLE", "ok");
+    options.forEach((o, i) => writeLine(`${i + 1}. SEGMENT ${o.segIdx + 1} -> CLASS ${o.cabin}  ${o.fare.currency} ${o.fare.total.toFixed(2)}`, "hint"));
+    writeLine("SELECT WITH FXU<N> (STORE TST) OR FXZ<N> (NO TST)", "hint");
+  },
+  FXU: (arg) => {
+    const m = arg.trim().toUpperCase().match(/^(\d+)/);
+    if (!m || !AMX.state.bestBuyOptions) return writeLine("FORMAT: FXU<N> - RUN FXA FIRST", "err");
+    const pnr = ensurePNR();
+    const sel = AMX.state.bestBuyOptions.options[parseInt(m[1], 10) - 1];
+    if (!sel) return writeLine("OPTION NOT FOUND", "err");
+    pnr.segments[sel.segIdx].cabin = sel.cabin;
+    const fare = decorateFare(pnr, computeFare(pnr, AMX.state.bestBuyOptions.idx, true));
+    pnr.fare = fare;
+    pnr.tst.push({ id: pnr.tst.length + 1, ...fare, createdAt: fmt.nowDate() });
+    addHistory(pnr, `BEST BUY REBOOKED SEGMENT ${sel.segIdx + 1} TO ${sel.cabin} - TST${pnr.tst.length}`, "CF");
+    AMX.state.bestBuyOptions = null;
+    writeLine(`REBOOKED TO ${sel.cabin} - TST${pnr.tst.length} CREATED - ${fare.currency} ${fare.total.toFixed(2)}`, "ok");
+  },
+  FXZ: (arg) => {
+    const m = arg.trim().toUpperCase().match(/^(\d+)/);
+    if (!m || !AMX.state.bestBuyOptions) return writeLine("FORMAT: FXZ<N> - RUN FXA FIRST", "err");
+    const pnr = ensurePNR();
+    const sel = AMX.state.bestBuyOptions.options[parseInt(m[1], 10) - 1];
+    if (!sel) return writeLine("OPTION NOT FOUND", "err");
+    pnr.segments[sel.segIdx].cabin = sel.cabin;
+    addHistory(pnr, `BEST BUY REBOOKED SEGMENT ${sel.segIdx + 1} TO ${sel.cabin} (NO TST STORED)`, "CF");
+    AMX.state.bestBuyOptions = null;
+    writeLine(`REBOOKED TO ${sel.cabin} - NOT STORED AS A TST (USE FQQ TO VIEW FARE DETAILS)`, "ok");
+  },
+  FXL: (arg) => {
+    const pnr = ensurePNR();
+    if (!pnr.segments.length) return writeLine("NO SEGMENTS TO PRICE", "err");
+    const idx = selectPassengersByScope(pnr, parsePricingScope(arg));
+    if (!idx.length) return writeLine("NO PASSENGERS MATCH SCOPE", "err");
+    const lowestLetter = Object.keys(CLASS_RATE).reduce((best, l) => CLASS_RATE[l] < CLASS_RATE[best] ? l : best);
+    const soldOut = pnr.segments.some(seg => (seg.classes || "").split(" ").some(t => t[0] === lowestLetter && parseInt(t.slice(1), 10) === 0));
+    const fare = computeFare(pnr, idx, true);
+    if (soldOut) writeLine("LOWEST SOLD OUT // TRY WAITLIST", "err");
+    writeLine(`LOWEST APPLICABLE FARE: ${fare.currency} ${fare.total.toFixed(2)}`, "ok");
   },
   TTP: (arg) => {
     const pnr = ensurePNR();
+    const a = arg.trim().toUpperCase();
+
+    const etrvMatch = a.match(/^\/ETRV\/L(\d+)(?:\/E\d+)?(?:\/S[\d,-]+)?$/);
+    if (etrvMatch) {
+      const ticket = pnr.tickets[parseInt(etrvMatch[1], 10) - 1];
+      if (!ticket) return writeLine("TICKET NOT FOUND", "err");
+      if ((ticket.status || "O") !== "O") return writeLine("ONLY AN OPEN (STATUS O) TICKET CAN BE REVALIDATED", "err");
+      ticket.revalidated = true;
+      addHistory(pnr, `REVALIDATED TICKET ${ticket.number}`, "CS");
+      savePNR(pnr);
+      return writeLine(`TICKET ${ticket.number} REVALIDATED - SEGMENT DATA UPDATED, NO FARE CHANGE`, "ok");
+    }
+
     const tst = pnrTstLatest(pnr);
     if (!tst) return writeLine("NO TST ON FILE - PRICE WITH FXP OR FXB FIRST", "err");
     if (!pnr.validatingCarrier) return writeLine("VALIDATING CARRIER REQUIRED - ENTER FV<CARRIER>", "err");
     if (!pnr.formOfPayment) return writeLine("FORM OF PAYMENT REQUIRED - ENTER FP", "err");
 
-    const a = arg.trim().toUpperCase();
     let scopeIdx;
     let tMatch = a.match(/^\/T(\d+)$/);
     if (tMatch) {
@@ -1067,17 +1576,24 @@ const commands = {
 
     const airline = AMX.state.world.airlines.find(al => al.code === pnr.validatingCarrier);
     const numeric = airline ? airline.numeric : "999";
+    const originalRef = pnr.fare?.originalTicket;
     const issued = [];
     scopeIdx.forEach(i => {
       if (!pnr.passengers[i]) return;
       const serial = String(Math.floor(1000000000 + Math.random() * 9000000000));
-      const t = { number: `${numeric}-${serial}`, passengerIndex: i, carrier: pnr.validatingCarrier, issuedAt: fmt.nowDate(), voided: false, tstId: tst.id };
+      const t = { number: `${numeric}-${serial}`, passengerIndex: i, carrier: pnr.validatingCarrier, issuedAt: fmt.nowDate(), status: "O", tstId: tst.id };
+      if (originalRef && originalRef.passengerIndex === i) {
+        t.reissueOf = originalRef.number;
+        const orig = pnr.tickets.find(tk => tk.number === originalRef.number);
+        if (orig) orig.status = "E";
+      }
       pnr.tickets.push(t);
       issued.push(t);
     });
-    addHistory(pnr, `TICKETED ${issued.length} PAX`);
+    if (originalRef) pnr.fare.originalTicket = null;
+    addHistory(pnr, `TICKETED ${issued.length} PAX${originalRef ? " (REISSUE)" : ""}`, originalRef ? "CT" : undefined);
     savePNR(pnr);
-    writeLine(`TTP - ${issued.length} TICKET(S) ISSUED`, "ok");
+    writeLine(`TTP - ${issued.length} TICKET(S) ISSUED${originalRef ? " (REISSUE - ADDITIONAL COLLECTION " + tst.currency + " " + (tst.additionalCollection || 0).toFixed(2) + ")" : ""}`, "ok");
     issued.forEach(t => { printTicketBlock(pnr, t); AMX.state.lastTicket = t; });
   },
   "ITR/P": () => {
@@ -1116,23 +1632,101 @@ const commands = {
     const t = AMX.state.lastTicket;
     if (!t) return writeLine("NO TICKET DISPLAYED - USE TWD FIRST", "err");
     writeLine(`TICKET HISTORY FOR ${t.number}`, "ok");
-    writeLine(`ISSUED ${t.issuedAt}${t.voided ? " / VOIDED" : ""}`, "hint");
+    writeLine(`ISSUED ${t.issuedAt}  STATUS ${t.status || "O"} - ${ticketStatusLabel(t.status)}`, "hint");
   },
-  TRDC: (arg) => {
+  TWX: (arg) => {
     const pnr = AMX.state.pnr;
     if (!pnr || !pnr.tickets?.length) return writeLine("NO TICKET ON FILE", "err");
     const a = arg.trim().toUpperCase();
     let ticket;
     const lMatch = a.match(/^\/L(\d+)$/);
-    const tMatch = a.match(/^\/TK-(.+)$/);
+    const tMatch = a.match(/^\/TKT(.+)$/) || a.match(/^\/TK-(.+)$/);
     if (lMatch) ticket = pnr.tickets[parseInt(lMatch[1], 10) - 1];
     else if (tMatch) ticket = pnr.tickets.find(t => t.number === tMatch[1]);
-    if (!ticket) return writeLine("FORMAT: TRDC/L<n> OR TRDC/TK-<number>", "err");
-    if (ticket.voided) return writeLine("TICKET ALREADY VOID", "err");
-    ticket.voided = true;
-    addHistory(pnr, `VOIDED TICKET ${ticket.number}`);
+    else ticket = AMX.state.lastTicket || pnr.tickets[pnr.tickets.length - 1];
+    if (!ticket) return writeLine("NO TICKET DISPLAYED - USE TWD FIRST, THEN TWX", "err");
+    if (ticket.status === "V") return writeLine("TICKET ALREADY VOID", "err");
+    if (ticket.status === "E") return writeLine("CANNOT VOID A REISSUED TICKET", "err");
+    const sac = `${ticket.carrier}${Math.floor(10000000 + Math.random() * 90000000)}`;
+    ticket.status = "V";
+    ticket.sac = sac;
+    addHistory(pnr, `VOIDED TICKET ${ticket.number} SAC-${sac}`, "CS");
     savePNR(pnr);
-    writeLine(`TICKET ${ticket.number} VOIDED`, "ok");
+    writeLine(`OK-ETKT UPDATED SAC-${sac}`, "ok");
+    writeLine("SALE IS CANCELLED IN REPORTING SYSTEM", "ok");
+  },
+  TGBD: (arg) => {
+    const m = arg.trim().toUpperCase().match(/^-([A-Z]{2})$/);
+    if (!m) return writeLine("FORMAT: TGBD-<ISO COUNTRY CODE>", "err");
+    const country = (AMX.state.world.countries || []).find(c => c.code === m[1]);
+    if (!country) return writeLine("COUNTRY NOT FOUND", "err");
+    const carriers = [...new Set(AMX.state.world.routes.filter(r => AMX.state.world.airports.some(a => a.code === r[0] && a.country === m[1])).map(r => r[2]))];
+    writeLine(`BSP/ARP PARTICIPANTS - ${country.name}`, "ok");
+    (carriers.length ? carriers : ["NONE ON FILE"]).forEach(c => writeLine(c, "hint"));
+  },
+  TGAD: (arg) => {
+    const m = arg.trim().toUpperCase().match(/^-([A-Z0-9]{2,3})(?:\/([A-Z0-9]{2,3}))?$/);
+    if (!m) return writeLine("FORMAT: TGAD-<CARRIER>[/<CARRIER2>]", "err");
+    const al1 = AMX.state.world.airlines.find(a => a.code === m[1]);
+    if (!al1) return writeLine("CARRIER NOT FOUND", "err");
+    if (m[2]) {
+      const al2 = AMX.state.world.airlines.find(a => a.code === m[2]);
+      if (!al2) return writeLine("CARRIER NOT FOUND", "err");
+      writeLine(`TICKETING/INTERLINE AGREEMENT ${m[1]}-${m[2]}: ACTIVE`, "ok");
+    } else {
+      writeLine(`${al1.name} (${m[1]}) TICKETING AGREEMENTS: ALL AMADEUS PARTICIPATING CARRIERS`, "ok");
+    }
+  },
+  TTK: (arg) => {
+    const pnr = ensurePNR();
+    const a = arg.trim().toUpperCase();
+    const tMatch = a.match(/^\/T(\d+)\//);
+    const tst = tMatch ? pnr.tst[parseInt(tMatch[1], 10) - 1] : pnrTstLatest(pnr);
+    if (!tst) return writeLine("NO TST ON FILE - PRICE WITH FXP FIRST", "err");
+    const body = tMatch ? a.slice(tMatch[0].length) : a.replace(/^\//, "");
+    let m;
+    if ((m = body.match(/^NF-(\d+(?:\.\d+)?)$/))) { tst.netFare = parseFloat(m[1]); addHistory(pnr, `TTK SET NET FARE ${m[1]}`, "CF"); return writeLine(`NET FARE SET: ${tst.currency} ${m[1]}`, "ok"); }
+    if ((m = body.match(/^V(\d{1,2}[A-Z]{3})(\d{1,2}[A-Z]{3})$/))) { tst.nvb = m[1]; tst.nva = m[2]; addHistory(pnr, `TTK SET NVB/NVA ${m[1]}/${m[2]}`, "CF"); return writeLine(`NVB ${m[1]}  NVA ${m[2]} SET`, "ok"); }
+    if ((m = body.match(/^F(\d+(?:\.\d+)?)$/))) { tst.base = parseFloat(m[1]); addHistory(pnr, `TTK OVERRODE FARE AMOUNT ${m[1]}`, "CF"); return writeLine(`FARE AMOUNT SET: ${tst.currency} ${m[1]}`, "ok"); }
+    if ((m = body.match(/^X(\d+(?:\.\d+)?)([A-Z]{2})$/))) { tst.taxBreakdown = tst.taxBreakdown || []; tst.taxBreakdown.push({ code: m[2], amount: parseFloat(m[1]) }); addHistory(pnr, `TTK ADDED TAX ${m[2]} ${m[1]}`, "CF"); return writeLine(`TAX ${m[2]} ${tst.currency} ${m[1]} ADDED`, "ok"); }
+    if ((m = body.match(/^T(\d+(?:\.\d+)?)$/))) { tst.additionalCollection = parseFloat(m[1]); addHistory(pnr, `TTK SET ADDITIONAL COLLECTION ${m[1]}`, "CF"); return writeLine(`ADDITIONAL COLLECTION SET: ${tst.currency} ${m[1]}`, "ok"); }
+    writeLine("FORMAT: TTK/NF-<AMT> | TTK/V<DDMMM><DDMMM> | TTK/F<AMT> | TTK/X<AMT><TAXCODE> | TTK/T<AMT> (PREFIX /T<N>/ TO TARGET A SPECIFIC TST)", "err");
+  },
+  TTU: (arg) => {
+    const m = arg.trim().toUpperCase().match(/^\/T(\d+)\/S([\d,-]+)$/);
+    if (!m) return writeLine("FORMAT: TTU/T<TST#>/S<SEGMENTS>", "err");
+    const pnr = ensurePNR();
+    const tst = pnr.tst[parseInt(m[1], 10) - 1];
+    if (!tst) return writeLine("TST NOT FOUND", "err");
+    tst.reissueSegments = m[2];
+    addHistory(pnr, `TTU ATTACHED SEGMENTS ${m[2]} TO TST${m[1]} FOR REISSUE`, "CF");
+    writeLine(`TST${m[1]} FLAGGED FOR REISSUE ON SEGMENTS ${m[2]}`, "ok");
+  },
+  TTF: () => writeLine("CHANGE FLAG REMOVED FROM TST", "ok"),
+  FE: (arg) => {
+    const pnr = ensurePNR();
+    pnr.endorsementOverride = arg.trim().toUpperCase();
+    addHistory(pnr, `SET ENDORSEMENT: ${pnr.endorsementOverride}`, "CF");
+    writeLine("ENDORSEMENT SET - WILL PRINT ON TWD/TTP/ITR/P", "ok");
+  },
+  FT: (arg) => {
+    const pnr = ensurePNR();
+    pnr.tourCode = arg.trim().toUpperCase();
+    addHistory(pnr, `SET TOUR CODE: ${pnr.tourCode}`, "CF");
+    writeLine(`TOUR CODE SET: ${pnr.tourCode}`, "ok");
+  },
+  "FO*L": (arg) => {
+    const pnr = AMX.state.pnr;
+    const m = arg.trim().toUpperCase().match(/^(\d+)(?:\/P(\d+))?(?:\/S[\d,-]+)?$/);
+    if (!pnr || !m) return writeLine("FORMAT: FO*L<TICKET LINE>[/P<PAX#>][/S<SEGMENTS>]", "err");
+    const ticket = pnr.tickets[parseInt(m[1], 10) - 1];
+    if (!ticket) return writeLine("TICKET NOT FOUND", "err");
+    if ((ticket.status || "O") !== "O") return writeLine("ORIGINAL TICKET MUST BE OPEN (STATUS O) TO REISSUE", "err");
+    if (!pnr.fare) return writeLine("PRICE THE NEW ITINERARY FIRST (FXP)", "err");
+    const paxIndex = m[2] ? parseInt(m[2], 10) - 1 : ticket.passengerIndex;
+    pnr.fare.originalTicket = { number: ticket.number, passengerIndex: paxIndex, issuedAt: ticket.issuedAt };
+    addHistory(pnr, `FO* PULLED ORIGINAL ISSUE DATA FROM TICKET ${ticket.number}`, "CF");
+    writeLine(`ORIGINAL ISSUE DATA ATTACHED - TICKET ${ticket.number} WILL BE MARKED EXCHANGED ON NEXT TTP`, "ok");
   },
   TRF: (arg) => {
     const pnr = AMX.state.pnr;
@@ -1141,21 +1735,62 @@ const commands = {
     const lMatch = a.match(/^\/L(\d+)$/);
     const ticket = lMatch ? pnr.tickets[parseInt(lMatch[1], 10) - 1] : pnr.tickets[pnr.tickets.length - 1];
     if (!ticket) return writeLine("FORMAT: TRF[/L<n>]", "err");
-    if (ticket.refunded) return writeLine("TICKET ALREADY REFUNDED", "err");
+    if (ticket.status === "R") return writeLine("TICKET ALREADY REFUNDED", "err");
+    if (ticket.status === "V") return writeLine("CANNOT REFUND A VOIDED TICKET", "err");
     const fare = pnr.fare;
     if (!fare) return writeLine("NO FARE ON FILE FOR THIS PNR", "err");
     const nonRefundable = !!fare.lowest;
-    const penalty = nonRefundable ? fare.total : Math.min(150, Math.round(fare.total * 0.15 * 100) / 100);
-    const refundAmount = Math.round(Math.max(0, fare.total - penalty) * 100) / 100;
-    ticket.refunded = true;
-    ticket.refundAmount = refundAmount;
-    ticket.refundPenalty = penalty;
-    addHistory(pnr, `TRF - REFUND PROCESSED ${ticket.number} ${fare.currency} ${refundAmount.toFixed(2)} (PENALTY ${fare.currency} ${penalty.toFixed(2)})`);
-    savePNR(pnr);
-    writeLine(`REFUND QUOTE - ${ticket.number}`, "ok");
+    AMX.state.refundDraft = { ticket, pnrLocator: pnr.recordLocator, fare, penalty: nonRefundable ? fare.total : Math.min(150, Math.round(fare.total * 0.15 * 100) / 100), used: 0 };
+    addHistory(pnr, `TRF - OPENED REFUND RECORD FOR ${ticket.number}`);
+    writeLine(`REFUND RECORD OPENED - ${ticket.number}`, "ok");
     writeLine(`FARE PAID    ${fare.currency} ${fare.total.toFixed(2)}`, "hint");
-    writeLine(`PENALTY      ${fare.currency} ${penalty.toFixed(2)}${nonRefundable ? " (NONREFUNDABLE FARE)" : ""}`, "hint");
-    writeLine(`REFUND DUE   ${fare.currency} ${refundAmount.toFixed(2)}`, "hint");
+    writeLine(`CANX FEE     ${fare.currency} ${AMX.state.refundDraft.penalty.toFixed(2)}${nonRefundable ? " (NONREFUNDABLE FARE)" : ""}`, "hint");
+    writeLine("USE TRFU/CP<AMT>[A] TO ADJUST PENALTY, TRFU/U<AMT> FOR USED FARE, TRFT FOR TAXES, TRFP TO PROCESS, TRFIG TO DISCARD", "hint");
+  },
+  TRFU: (arg) => {
+    const draft = AMX.state.refundDraft;
+    if (!draft) return writeLine("NO REFUND RECORD OPEN - USE TRF FIRST", "err");
+    const a = arg.trim().toUpperCase();
+    let m;
+    if ((m = a.match(/^\/CP(\d+(?:\.\d+)?)(A)?$/))) {
+      draft.penalty = m[2] ? parseFloat(m[1]) : Math.round(draft.fare.total * (parseFloat(m[1]) / 100) * 100) / 100;
+      writeLine(`CANCELLATION PENALTY SET: ${draft.fare.currency} ${draft.penalty.toFixed(2)}`, "ok");
+      return;
+    }
+    if ((m = a.match(/^\/U(\d+(?:\.\d+)?)$/))) {
+      draft.used = parseFloat(m[1]);
+      writeLine(`FARE USED SET: ${draft.fare.currency} ${draft.used.toFixed(2)}`, "ok");
+      return;
+    }
+    writeLine("FORMAT: TRFU/CP<AMOUNT>[A] (A=AMOUNT, OMIT FOR PERCENT) | TRFU/U<USED FARE AMOUNT>", "err");
+  },
+  TRFT: () => {
+    const draft = AMX.state.refundDraft;
+    if (!draft) return writeLine("NO REFUND RECORD OPEN - USE TRF FIRST", "err");
+    writeLine("REFUNDABLE TAXES", "ok");
+    (draft.fare.taxBreakdown || []).forEach(tb => writeLine(`${tb.code}  ${draft.fare.currency} ${tb.amount.toFixed(2)}`, "hint"));
+    writeLine(`REFUNDABLE TAX TOTAL ${draft.fare.currency} ${(draft.fare.taxes || 0).toFixed(2)}`, "hint");
+  },
+  TRFIG: () => {
+    if (!AMX.state.refundDraft) return writeLine("NO REFUND RECORD OPEN", "err");
+    AMX.state.refundDraft = null;
+    writeLine("REFUND RECORD IGNORED", "ok");
+  },
+  TRFP: () => {
+    const draft = AMX.state.refundDraft;
+    if (!draft) return writeLine("NO REFUND RECORD OPEN - USE TRF FIRST", "err");
+    const pnr = AMX.state.pnr;
+    const refundable = Math.max(0, draft.fare.total - draft.used);
+    const refundAmount = Math.round(Math.max(0, refundable - draft.penalty) * 100) / 100;
+    draft.ticket.status = "R";
+    draft.ticket.refundAmount = refundAmount;
+    const sac = `${draft.ticket.carrier}${Math.floor(10000000 + Math.random() * 90000000)}`;
+    addHistory(pnr, `TRFP - REFUND PROCESSED ${draft.ticket.number} ${draft.fare.currency} ${refundAmount.toFixed(2)} (FEE ${draft.fare.currency} ${draft.penalty.toFixed(2)})`, "CS");
+    savePNR(pnr);
+    writeLine(`OK-ETKT RECORD UPDATED SAC-${sac}`, "ok");
+    writeLine("OK - REFUND PROCESSED", "ok");
+    writeLine(`REFUND TOTAL ${draft.fare.currency} ${refundAmount.toFixed(2)}`, "hint");
+    AMX.state.refundDraft = null;
   },
   TJQ: (arg) => {
     const a = arg.trim().toUpperCase();
@@ -1171,13 +1806,13 @@ const commands = {
     allStoredPNRs().forEach(pnr => {
       (pnr.tickets || []).forEach(t => {
         if (carrierFilter && t.carrier !== carrierFilter) return;
-        if (typeFilter === "RFND" && !t.voided) return;
+        if (typeFilter === "RFND" && !["V", "R"].includes(t.status)) return;
         rows.push({ locator: pnr.recordLocator, ticket: t });
       });
     });
     writeLine(`SALES REPORT ${dateFrom ? dateFrom + "-" + dateTo : fmt.nowDate()}`, "ok");
     if (!rows.length) return writeLine("NO TICKETS FOUND", "hint");
-    rows.forEach(r => writeLine(`${r.locator}  ${r.ticket.number}  ${r.ticket.carrier}  ${r.ticket.voided ? "VOID" : "ISSUED"}`, "hint"));
+    rows.forEach(r => writeLine(`${r.locator}  ${r.ticket.number}  ${r.ticket.carrier}  ${r.ticket.status || "O"} - ${ticketStatusLabel(r.ticket.status)}`, "hint"));
   },
 
   // Passenger Servicing
@@ -1219,14 +1854,14 @@ const commands = {
 
   // Queues
   QE: (arg) => {
-    const n = arg.trim();
-    if (!/^\d+$/.test(n)) return writeLine("FORMAT: QE<QUEUE NUMBER>", "err");
+    const m = arg.trim().toUpperCase().match(/^(\d+)(?:C(\d))?$/);
+    if (!m) return writeLine("FORMAT: QE<QUEUE NUMBER>[C<CATEGORY>]", "err");
+    const [, n, cat] = m;
     const pnr = AMX.state.pnr;
     if (!pnr?.recordLocator) return writeLine("PNR MUST BE SAVED (ER) BEFORE QUEUING", "err");
-    const q = ensureQueue(n);
-    if (!q.pnrs.includes(pnr.recordLocator)) q.pnrs.push(pnr.recordLocator);
-    addHistory(pnr, `PLACED ON QUEUE ${n}`);
-    writeLine(`PNR ${pnr.recordLocator} PLACED ON QUEUE ${n}`, "ok");
+    placeOnQueue(n, pnr.recordLocator, cat ? `C${cat}` : "C1");
+    addHistory(pnr, `PLACED ON QUEUE ${n}${cat ? "C" + cat : ""}`, "AO");
+    writeLine(`PNR ${pnr.recordLocator} PLACED ON QUEUE ${n}${cat ? " CATEGORY " + cat : ""}`, "ok");
   },
   QTQ: () => {
     writeLine("QUEUE COUNT TOTAL", "ok");
@@ -1235,28 +1870,52 @@ const commands = {
       writeLine(`${n}  ${q.name.padEnd(20)} ${q.pnrs.length}`, "hint");
     });
   },
-  QT: (arg) => {
-    const n = arg.trim();
-    if (!/^\d+$/.test(n)) return writeLine("FORMAT: QT<QUEUE NUMBER>", "err");
+  QC: (arg) => {
+    const m = arg.trim().toUpperCase().match(/^(\d+)(CA|CE|C(\d))$/);
+    if (!m) return writeLine("FORMAT: QC<QUEUE NUMBER><CA|CE|C<CATEGORY>>", "err");
+    const [, n, mode, catDigit] = m;
     const q = ensureQueue(n);
-    if (!q.pnrs.length) { AMX.state.queueBrowse = null; return writeLine(`QUEUE ${n} (${q.name}) IS EMPTY`, "ok"); }
-    AMX.state.queueBrowse = { qnum: n, pos: 0 };
-    const locator = q.pnrs[0];
+    writeLine(`QUEUE COUNT ${n} (${q.name})`, "ok");
+    if (mode === "CA" || mode === "CE") {
+      const byCat = {};
+      q.pnrs.forEach(loc => { const c = queueCategory(q, loc); byCat[c] = (byCat[c] || 0) + 1; });
+      const cats = Object.keys(byCat);
+      if (!cats.length) return writeLine("NO ACTIVE CATEGORIES", "hint");
+      cats.sort().forEach(c => writeLine(`${c}  ${byCat[c]}`, "hint"));
+    } else {
+      const cat = `C${catDigit}`;
+      const count = q.pnrs.filter(loc => queueCategory(q, loc) === cat).length;
+      writeLine(`${cat}  ${count}`, "hint");
+    }
+  },
+  QT: (arg) => {
+    const m = arg.trim().toUpperCase().match(/^(\d+)(?:C(\d))?$/);
+    if (!m) return writeLine("FORMAT: QT<QUEUE NUMBER>", "err");
+    const [, n, cat] = m;
+    const q = ensureQueue(n);
+    const pool = cat ? q.pnrs.filter(loc => queueCategory(q, loc) === `C${cat}`) : q.pnrs;
+    if (!pool.length) { AMX.state.queueBrowse = null; return writeLine(`QUEUE ${n}${cat ? "C" + cat : ""} (${q.name}) IS EMPTY`, "ok"); }
+    AMX.state.queueBrowse = { qnum: n, pos: 0, category: cat ? `C${cat}` : null };
+    const locator = pool[0];
     const pnr = loadPNR(locator);
-    writeLine(`QUEUE ${n} (${q.name}) - ${q.pnrs.length} PNR(S)`, "ok");
+    writeLine(`QUEUE ${n}${cat ? "C" + cat : ""} (${q.name}) - ${pool.length} PNR(S)`, "ok");
     writeLine(`1. ${locator} ${(pnr?.passengers || []).map(p => p.name).join(", ") || ""}`, "hint");
   },
+  QS: (arg) => commands.QT(arg),
   QN: () => {
     const b = AMX.state.queueBrowse;
     if (!b) return writeLine("NO QUEUE OPEN - USE QT<N> FIRST", "err");
     const q = AMX.state.queues[b.qnum];
-    const locator = q.pnrs.shift();
+    const idx = b.category ? q.pnrs.findIndex(loc => queueCategory(q, loc) === b.category) : 0;
+    const locator = idx === -1 ? undefined : q.pnrs.splice(idx, 1)[0];
     if (!locator) { AMX.state.queueBrowse = null; return writeLine("QUEUE EMPTY", "ok"); }
+    delete q.categories[locator];
     AMX.state.pnr = loadPNR(locator);
     writeLine(`ACTIONED ${locator} - REMOVED FROM QUEUE ${b.qnum}`, "ok");
-    if (q.pnrs.length) {
-      const next = loadPNR(q.pnrs[0]);
-      writeLine(`NEXT: ${q.pnrs[0]} ${(next?.passengers || []).map(p => p.name).join(", ") || ""}`, "hint");
+    const pool = b.category ? q.pnrs.filter(loc => queueCategory(q, loc) === b.category) : q.pnrs;
+    if (pool.length) {
+      const next = loadPNR(pool[0]);
+      writeLine(`NEXT: ${pool[0]} ${(next?.passengers || []).map(p => p.name).join(", ") || ""}`, "hint");
     } else {
       writeLine(`QUEUE ${b.qnum} IS NOW EMPTY`, "hint");
       AMX.state.queueBrowse = null;
@@ -1266,13 +1925,15 @@ const commands = {
     const b = AMX.state.queueBrowse;
     if (!b) return writeLine("NO QUEUE OPEN - USE QT<N> FIRST", "err");
     const q = AMX.state.queues[b.qnum];
-    const locator = q.pnrs.shift();
+    const idx = b.category ? q.pnrs.findIndex(loc => queueCategory(q, loc) === b.category) : 0;
+    const locator = idx === -1 ? undefined : q.pnrs.splice(idx, 1)[0];
     if (!locator) return writeLine("QUEUE EMPTY", "ok");
     q.pnrs.push(locator);
     writeLine(`${locator} DELAYED TO BOTTOM OF QUEUE ${b.qnum}`, "ok");
-    if (q.pnrs.length) {
-      const next = loadPNR(q.pnrs[0]);
-      writeLine(`NEXT: ${q.pnrs[0]} ${(next?.passengers || []).map(p => p.name).join(", ") || ""}`, "hint");
+    const pool = b.category ? q.pnrs.filter(loc => queueCategory(q, loc) === b.category) : q.pnrs;
+    if (pool.length) {
+      const next = loadPNR(pool[0]);
+      writeLine(`NEXT: ${pool[0]} ${(next?.passengers || []).map(p => p.name).join(", ") || ""}`, "hint");
     }
   },
   QI: () => {
@@ -1282,8 +1943,48 @@ const commands = {
   },
 
   // Profiles
-  PM: () => { AMX.state.profileMode = true; writeLine("PROFILE MODE ACTIVE", "ok"); },
+  PM: () => { AMX.state.profileMode = true; writeLine("****PM MODE**** PROFILE MODE ACTIVE", "ok"); },
   PME: () => { AMX.state.profileMode = false; AMX.state.profileDraft = null; writeLine("EXITED PROFILE MODE", "ok"); },
+  PMP: () => { AMX.state.profileMode = false; writeLine("PROFILE MODE SUSPENDED TEMPORARILY - PM TO RESUME", "ok"); },
+  PEE: () => {
+    const d = AMX.state.profileDraft;
+    if (!d || !d.index) return writeLine("NO PROFILE INDEX SET - USE PIN/<NAME> FIRST", "err");
+    AMX.state.profiles[d.index] = d;
+    AMX.state.profileMode = false;
+    AMX.state.profileDraft = null;
+    writeLine(`PROFILE SAVED: ${d.index} - EXITED PROFILE MODE`, "ok");
+  },
+  PIR: () => {
+    const d = AMX.state.profileDraft;
+    AMX.state.profileDraft = null;
+    if (d && d.index && AMX.state.profiles[d.index]) AMX.state.profileDraft = AMX.state.profiles[d.index];
+    writeLine("PROFILE UPDATES IGNORED - REDISPLAYED ORIGINAL", "ok");
+  },
+  "PCN/": (arg) => {
+    if (!AMX.state.profileDraft) AMX.state.profileDraft = { index: null, name: null, contacts: {} };
+    AMX.state.profileDraft.companyName = arg.trim().toUpperCase();
+    writeLine(`COMPANY PROFILE NAME SET: ${AMX.state.profileDraft.companyName}`, "ok");
+  },
+  "PBC/": (arg) => {
+    if (!AMX.state.profileDraft) AMX.state.profileDraft = { index: null, name: null, contacts: {} };
+    AMX.state.profileDraft.billingContact = arg.trim().toUpperCase();
+    writeLine(`BILLING CONTACT SET: ${AMX.state.profileDraft.billingContact}`, "ok");
+  },
+  "PBP/": (arg) => {
+    if (!AMX.state.profileDraft) AMX.state.profileDraft = { index: null, name: null, contacts: {} };
+    AMX.state.profileDraft.billingPhone = arg.trim();
+    writeLine(`BILLING PHONE SET: ${AMX.state.profileDraft.billingPhone}`, "ok");
+  },
+  "PCO/": (arg) => {
+    if (!AMX.state.profileDraft) AMX.state.profileDraft = { index: null, name: null, contacts: {} };
+    AMX.state.profileDraft.countryCode = arg.trim().toUpperCase();
+    writeLine(`PROFILE COUNTRY CODE SET: ${AMX.state.profileDraft.countryCode}`, "ok");
+  },
+  "PBD/": (arg) => {
+    if (!AMX.state.profileDraft) AMX.state.profileDraft = { index: null, name: null, contacts: {} };
+    AMX.state.profileDraft.dob = arg.trim().toUpperCase();
+    writeLine(`DATE OF BIRTH SET: ${AMX.state.profileDraft.dob}`, "ok");
+  },
   "PC/": (arg) => {
     const m = arg.match(/^-(\d+)$/);
     if (!m) return writeLine("FORMAT: PC/-<PAX NUMBER>", "err");
@@ -1494,7 +2195,7 @@ const scenarios = [
       { instruction: "Confirm the ticketing arrangement.", hint: "TKOK", validate: (cmd) => cmd === "TKOK" },
       { instruction: "Sign the booking.", hint: "RF <YOUR NAME>", validate: (cmd) => cmd.startsWith("RF") },
       { instruction: "Find and store the lowest fare.", hint: "FXR to preview, then FXB to store it", validate: (cmd) => cmd.startsWith("FXR") || cmd.startsWith("FXB") },
-      { instruction: "Add a checked bag — the customer needs one.", hint: "FXA CHECKED BAG 35", validate: (cmd) => cmd.startsWith("FXA") || cmd.startsWith("FXK") },
+      { instruction: "Add a checked bag — the customer needs one.", hint: "SVC CHECKED BAG 35", validate: (cmd) => cmd.startsWith("SVC") },
       { instruction: "Set the validating carrier.", hint: "FV <CARRIER CODE>", validate: (cmd) => cmd.startsWith("FV") },
       { instruction: "Take payment by card.", hint: "FP CC VI 4111111111111111/1228", validate: (cmd, full) => cmd.startsWith("FP") && full.includes("CC") },
       { instruction: "Issue the ticket.", hint: "TTP", validate: (cmd) => cmd.startsWith("TTP") },
@@ -1592,6 +2293,10 @@ function dispatchCommand(s, verb) {
         const commandKeys = Object.keys(commands).sort((a, b) => b.length - a.length);
         const action = commandKeys.find(key => verb.startsWith(key));
 
+        if (!AMX.state.signedIn && action !== "JI" && action !== "JJ" && action !== "HE") {
+            return writeLine("NOT SIGNED IN - ENTER JI TO SIGN IN", "err");
+        }
+
         if (action) {
             const effectiveArg = s.slice(action.length).trim();
             commands[action](effectiveArg);
@@ -1615,6 +2320,33 @@ function exec(raw) {
 
     const sp = s.split(/\s+/);
     const verb = sp[0].toUpperCase();
+
+    // Reconfirm (e.g. "3/RR") and Direct Access (e.g. "1EKAD12SEPDOHDXB") both start
+    // with a digit, which no alphabetic command key ever does - handled here instead
+    // of in `commands` so they can never collide with a real command prefix.
+    let m;
+    if ((m = verb.match(/^(\d{1,2})\/(RR|HK|HL|SC|SS)$/))) {
+        const pnr = AMX.state.pnr;
+        const seg = pnr?.segments[parseInt(m[1], 10) - 1];
+        if (!seg) { writeLine("SEGMENT NOT FOUND", "err"); return; }
+        seg.status = m[2];
+        addHistory(pnr, `RECONFIRMED SEGMENT ${m[1]} TO STATUS ${m[2]}`, "CS");
+        writeLine(`SEGMENT ${m[1]} RECONFIRMED - STATUS ${m[2]}`, "ok");
+        return;
+    }
+    if ((m = verb.match(/^1([A-Z]{2})(AD|AA|AN)?(\d{1,2}[A-Z]{3})([A-Z]{3})([A-Z]{3})$/))) {
+        const [, carrier, , ddmmm, from, to] = m;
+        const dt = parseDDMMM(ddmmm);
+        if (!dt) { writeLine("INVALID DATE FORMAT", "err"); return; }
+        const lines = mockAvailability(dt, from, to, { airlineFilter: carrier });
+        if (!lines.length) { writeLine(`NO DIRECT ACCESS INVENTORY FOR ${carrier} ${from}-${to}`, "err"); return; }
+        lines.forEach((l, i) => l.line = 21 + i);
+        AMX.state.availability.outbound = lines;
+        AMX.state.lastAvailQuery = { code: "AN", ddmmm, from, to, opts: { airlineFilter: carrier } };
+        writeLine(`DIRECT ACCESS - ${carrier} ${ddmmm} ${from}-${to} (LINK ACTIVE 3 MIN)`, "ok");
+        lines.forEach(l => printAvailLine(l));
+        return;
+    }
 
     // TRAIN and HINT are meta-commands: they always run directly, even mid-scenario.
     if (verb.startsWith("TRAIN") || verb === "HINT") {

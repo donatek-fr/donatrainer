@@ -28,12 +28,12 @@ DonaTrainer simulates a rich set of GDS functionalities:
 ####  ticketing & Commercials
 * Pricing & Ticketing: Price itineraries (`FXP`), display fare rules (`FQN`), and issue tickets (`TTP`).
 * Post-Ticketing: Simulate same-day voids (`TWX`) and process refunds (`TRF`).
-* Ancillary Services: Sell extra services (`FXA`, `FXK`) and add agency markups (`FCM`).
+* Ancillary Services: Sell extra services (`SVC`) and add agency markups (`FCM`).
 
 #### 🧠 Dynamic & Realistic Engine
 * Irregular Operations (IROPS): The system randomly cancels flights to simulate airline disruptions.
 * Guided Scenarios: A built-in training mode guides you through real-world booking scenarios.
-* Queue Management: Place PNRs on queues (`QP`), view queues (`QT`), and action them (`QS`).
+* Queue Management: Place PNRs on queues (`QE`), browse them by category (`QT`/`QC`), and action them (`QN`).
 
 ## Getting Started
 

@@ -129,7 +129,7 @@ assert(sandbox.AMX.state.pnr.passengers.length === 2, "NM2 should add two passen
 assert(sandbox.AMX.state.pnr.passengers[0].name === "SMITH/JOHN MR", "first passenger name/title");
 assert(sandbox.AMX.state.pnr.passengers[1].name === "SMITH/JANE MRS", "second passenger name/title");
 
-// --- #3 TRF refund, plus TTP's FC/tax fields ---
+// --- #3 automated refund (TRF -> TRFU -> TRFP), plus TTP's FC/tax fields ---
 sandbox.exec("AP 33-123456789");
 sandbox.exec("TKOK");
 sandbox.exec("RF TEST");
@@ -140,11 +140,15 @@ sandbox.exec("TTP");
 includesLine(sandbox, "FC DOH QR LHR", "TTP output should include a fare-calculation (FC) line");
 includesLine(sandbox, "FB ", "TTP output should include a fare-basis (FB) line");
 sandbox.exec("TRF/L1");
-includesLine(sandbox, "REFUND QUOTE", "TRF should print a refund quote");
-const refunded = sandbox.AMX.state.pnr.tickets[0].refunded;
-assert(refunded === true, "TRF should mark the ticket refunded");
+includesLine(sandbox, "REFUND RECORD OPENED", "TRF should open a refund record, not process it immediately");
+assert(sandbox.AMX.state.pnr.tickets[0].status !== "R", "TRF alone should not yet mark the ticket refunded");
+sandbox.exec("TRFU/CP10A");
+sandbox.exec("TRFP");
+includesLine(sandbox, "OK - REFUND PROCESSED", "TRFP should finalize the refund");
+const refundedStatus = sandbox.AMX.state.pnr.tickets[0].status;
+assert(refundedStatus === "R", "TRFP should mark the ticket status R (refunded)");
 sandbox.exec("TRF/L1");
-includesLine(sandbox, "ALREADY REFUNDED", "TRF should refuse a second refund on the same ticket");
+includesLine(sandbox, "ALREADY REFUNDED", "TRF should refuse to open a second refund on an already-refunded ticket");
 
 // --- #5 FQD currency conversion ---
 sandbox.exec("FQDDOHLHR/CUSD");
@@ -176,6 +180,75 @@ includesLine(sandbox, "SYSTEM ERROR", "a caught command error should print a vis
 sandbox.markScenarioComplete("The One-Way Request");
 sandbox.exec("TRAIN");
 includesLine(sandbox, "The One-Way Request [DONE]", "a completed scenario should show [DONE] in the TRAIN listing");
+
+// --- SVC/FXA rename: the old ancillary shorthand must not collide with the
+// real Amadeus FXA (Best Buy fare list) command any more. ---
+sandbox.exec("IG");
+sandbox.exec("AN15DECDOHLHR");
+sandbox.exec("SS1Y1");
+sandbox.exec("NM1RENAME/TEST MR");
+sandbox.exec("SVC CHECKED BAG 35");
+assert(sandbox.AMX.state.pnr.ancillaries.some((a) => a.type === "SVC" && a.price === 35), "SVC should add an ancillary service");
+sandbox.exec("IG");
+sandbox.exec("FXA");
+includesLine(sandbox, "NO SEGMENTS TO PRICE", "with no active PNR/segments, FXA should behave as the real Best Buy fare-list command, not the old ancillary shorthand");
+
+// --- TWX void (renamed from the invented TRDC) ---
+sandbox.exec("IG");
+sandbox.exec("AN15DECDOHLHR");
+sandbox.exec("SS1Y1");
+sandbox.exec("NM1VOIDME/TEST MR");
+sandbox.exec("AP 33-123456789");
+sandbox.exec("TKOK");
+sandbox.exec("RF TEST");
+sandbox.exec("FXP");
+sandbox.exec("FV QR");
+sandbox.exec("FP CASH");
+sandbox.exec("TTP");
+sandbox.exec("TWD");
+sandbox.exec("TWX");
+includesLine(sandbox, "OK-ETKT UPDATED SAC-", "TWX should print a SAC settlement code like a real void");
+assert(sandbox.AMX.state.pnr.tickets[0].status === "V", "TWX should set the ticket status to V (void)");
+sandbox.exec("TWX");
+includesLine(sandbox, "ALREADY VOID", "TWX should refuse to void an already-void ticket");
+
+// --- Reissue flow: SB rebook -> FXP re-price -> FO*L<n> -> TTK/T<amt> -> TTP ---
+sandbox.exec("IG");
+sandbox.exec("AN15DECDOHLHR");
+sandbox.exec("SS1Y1");
+sandbox.exec("NM1REISSUE/TEST MR");
+sandbox.exec("AP 33-123456789");
+sandbox.exec("TKOK");
+sandbox.exec("RF TEST");
+sandbox.exec("FXP");
+sandbox.exec("FV QR");
+sandbox.exec("FP CASH");
+sandbox.exec("TTP");
+const originalTicketNumber = sandbox.AMX.state.pnr.tickets[0].number;
+sandbox.exec("SBY1");
+sandbox.exec("FXP");
+sandbox.exec("FO*L1");
+sandbox.exec("TTK/T50");
+sandbox.exec("TTP");
+const pnrAfterReissue = sandbox.AMX.state.pnr;
+assert(pnrAfterReissue.tickets[0].status === "E", "the original ticket should flip to status E (exchanged) after a reissue");
+assert(pnrAfterReissue.tickets[1] && pnrAfterReissue.tickets[1].reissueOf === originalTicketNumber, "the new ticket should record reissueOf pointing at the original ticket number");
+includesLine(sandbox, "REISSUE - ADDITIONAL COLLECTION", "TTP should print the additional collection amount on a reissue");
+
+// --- DD day-of-week (uses an explicit 4-digit year so the assertion is stable regardless of when the suite runs) ---
+sandbox.exec("DD15DEC2025");
+const expectedDow = ["SUN","MON","TUE","WED","THU","FRI","SAT"][new Date(Date.UTC(2025, 11, 15)).getUTCDay()];
+includesLine(sandbox, expectedDow, `DD15DEC2025 should report ${expectedDow} as the day of week`);
+
+// --- RT element filters (RTN, RTA, ...) must never shadow a real 6-character
+// record locator that happens to start with the same letter. ---
+const filterablePnr = sandbox.createEmptyPNR();
+filterablePnr.recordLocator = "NABCDE";
+filterablePnr.passengers = [{ name: "FILTERTEST/RT", type: "ADT" }];
+sandbox.savePNR(filterablePnr);
+sandbox.exec("IG");
+sandbox.exec("RTNABCDE");
+assert(sandbox.AMX.state.pnr && sandbox.AMX.state.pnr.recordLocator === "NABCDE", "a locator starting with a filter-code letter (N) must still retrieve normally, not be swallowed by the RT element-filter branch");
 
 console.log(`\n${pass} passed, ${fail} failed.`);
 if (fail > 0) process.exit(1);
