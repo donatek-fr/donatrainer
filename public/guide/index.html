@@ -246,7 +246,7 @@
           <div class="cmd-grid">
             <div class="cmd-block"><span class="syntax">FV &lt;CARRIER&gt;</span><div class="desc">Validating carrier, e.g. <code>FV QR</code>.</div></div>
             <div class="cmd-block"><span class="syntax">FP CASH / FP INV / FP CC VI 4444.../1228</span><div class="desc">Form of payment — cash, invoice, or a card with expiry.</div></div>
-            <div class="cmd-block"><span class="syntax">FM &lt;AMOUNT&gt;</span><div class="desc">Agency commission on file.</div></div>
+            <div class="cmd-block"><span class="syntax">FM&lt;PERCENT&gt; / FM&lt;AMOUNT.NN&gt;</span><div class="desc">Agency commission — <code>FM10</code> is a 10% commission, <code>FM7.00</code> (a decimal point is what tells the two apart) is a flat amount instead. Add <code>/P&lt;n&gt;</code> for one passenger only. Prints on the ticket as <code>FM *M*10</code> for a percentage or <code>FM EUR 7.00</code> for a flat one.</div></div>
             <div class="cmd-block"><span class="syntax">FCM-A&lt;AMOUNT&gt; / FCM-C&lt;PERCENT&gt;</span><div class="desc">A flat or percentage agency markup, added to the displayed total.</div></div>
             <div class="cmd-block"><span class="syntax">SVC &lt;description&gt; &lt;price&gt;</span><div class="desc">Record an ancillary — extra bag, seat upgrade — added straight into the total. Issues its own EMD document (<code>EMD/L&lt;n&gt;</code> to view, <code>EMDV/L&lt;n&gt;</code> to void, <code>EMDR/L&lt;n&gt;</code> to refund) rather than just a line item — voiding or refunding one drops it back out of the total.</div></div>
             <div class="cmd-block"><span class="syntax">TTP</span><div class="desc">Issues the ticket(s). <code>TTP/P1</code>, <code>TTP/PAX</code>, <code>TTP/INF</code> scope it to specific passengers.</div></div>
@@ -389,7 +389,7 @@
                 <tr><td>FE / FT</td><td>Endorsement text / tour code override</td></tr>
                 <tr><td>FFN</td><td>Frequent flyer number</td></tr>
                 <tr><td>FHE</td><td>Manually insert a ticket number</td></tr>
-                <tr><td>FM</td><td>Commission</td></tr>
+                <tr><td>FM</td><td>Commission — percentage or flat amount, optionally per passenger</td></tr>
                 <tr><td>FO*L</td><td>Pull an original ticket's issue data for reissue</td></tr>
                 <tr><td>FP</td><td>Form of payment</td></tr>
                 <tr><td>FQD / FQP / FQN</td><td>Fare display / informative pricing / fare rules (FQN also takes a line number)</td></tr>

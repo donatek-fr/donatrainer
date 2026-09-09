@@ -367,5 +367,25 @@ includesLine(sandbox, "HEATHROW.GB", "the availability header should name the de
 const headerLine = outputLines(sandbox).find(l => l.includes("AMADEUS AVAILABILITY"));
 assert(!!headerLine && /\b(SU|MO|TU|WE|TH|FR|SA)\b/.test(headerLine), "the availability header should include a two-letter day-of-week code");
 
+// --- FM commission: percentage vs flat amount (distinguished by a decimal point), /P<n> scoping, and printed on the ticket ---
+sandbox.exec("IG");
+sandbox.exec("AN15DECDOHLHR");
+sandbox.exec("SS1Y1");
+sandbox.exec("NM1COMMTEST/TEST MR");
+sandbox.exec("FM10");
+assert(sandbox.AMX.state.pnr.commission.type === "PERCENT" && sandbox.AMX.state.pnr.commission.value === 10, "FM10 (no decimal) should be parsed as a 10% commission");
+sandbox.exec("FM7.00");
+assert(sandbox.AMX.state.pnr.commission.type === "AMOUNT" && sandbox.AMX.state.pnr.commission.value === 7, "FM7.00 (has a decimal point) should be parsed as a flat 7.00 amount commission, not a percentage");
+sandbox.exec("FM5/P1");
+assert(sandbox.AMX.state.pnr.commissionByPax["1"].type === "PERCENT" && sandbox.AMX.state.pnr.commissionByPax["1"].value === 5, "FM5/P1 should set a per-passenger commission override without touching the PNR-level one");
+sandbox.exec("AP 33-1");
+sandbox.exec("TKOK");
+sandbox.exec("RF TEST");
+sandbox.exec("FXP");
+sandbox.exec("FV QR");
+sandbox.exec("FP CASH");
+sandbox.exec("TTP");
+includesLine(sandbox, "FM *M*5", "the ticket should print the passenger's own commission override (5%), not the PNR-level 7.00 amount, since a /P1 override is on file");
+
 console.log(`\n${pass} passed, ${fail} failed.`);
 if (fail > 0) process.exit(1);

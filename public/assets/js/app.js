@@ -113,7 +113,7 @@ function createEmptyPNR() {
     confidentialRemarks: [], itineraryRemarks: [],
     history: [`CREATED BY M.A. KAHAR / DONABIL SAS`], status: "ACTIVE", ancillaries: [],
     contacts: {}, tst: [], tickets: [], markup: null,
-    validatingCarrier: null, formOfPayment: null, commission: null,
+    validatingCarrier: null, formOfPayment: null, commission: null, commissionByPax: {},
     security: [], tourCode: null, endorsementOverride: null, ticketingArrangement: null,
   };
 }
@@ -269,6 +269,7 @@ function buildTicketPrintHTML(pnr) {
     <div class="sub">Fare Basis ${tst.fareBasis} &middot; Not Valid Before ${tst.nvb} &middot; Not Valid After ${tst.nva}</div>
     <div class="sub endorsement">${pnr.endorsementOverride || tst.endorsement}</div>
     ${pnr.tourCode ? `<div class="sub">Tour Code: ${pnr.tourCode}</div>` : ""}
+    ${pnr.commission ? `<div class="sub">Commission: ${pnr.commission.type === "PERCENT" ? pnr.commission.value + "%" : fare.currency + " " + pnr.commission.value.toFixed(2)}</div>` : ""}
     ` : ""}
 
     <div class="r-foot">
@@ -692,6 +693,15 @@ function decorateFare(pnr, fare) {
   fare.nva = pnr.segments[pnr.segments.length - 1]?.date || pnr.segments[0]?.date || "";
   return fare;
 }
+function commissionFor(pnr, paxIndex) {
+  return (pnr.commissionByPax && pnr.commissionByPax[String(paxIndex + 1)]) || pnr.commission || null;
+}
+function commissionLine(pnr, paxIndex) {
+  const c = commissionFor(pnr, paxIndex);
+  if (!c) return null;
+  const ccy = pnr.fare?.currency || "EUR";
+  return c.type === "PERCENT" ? `FM *M*${c.value}` : `FM ${ccy} ${c.value.toFixed(2)}`;
+}
 function printTicketBlock(pnr, ticket) {
   const pax = pnr.passengers[ticket.passengerIndex];
   const tst = (pnr.tst || []).find(t => t.id === ticket.tstId) || pnrTstLatest(pnr);
@@ -711,6 +721,8 @@ function printTicketBlock(pnr, ticket) {
     if (pnr.tourCode) writeLine(`  FT ${pnr.tourCode}`, "hint");
     if (tst.additionalCollection != null) writeLine(`  ADDITIONAL COLLECTION ${tst.currency} ${tst.additionalCollection.toFixed(2)}`, "hint");
   }
+  const commTxt = commissionLine(pnr, ticket.passengerIndex);
+  if (commTxt) writeLine(`  ${commTxt}`, "hint");
   const fopText = pnr.formOfPayment
     ? (pnr.formOfPayment.type === "CC" ? `CC ${pnr.formOfPayment.card} ****${pnr.formOfPayment.number.slice(-4)}` : pnr.formOfPayment.type)
     : "NOT ON FILE";
@@ -746,6 +758,7 @@ const HELP_TOPICS = {
   FQD: "FQD<FROM><TO>[/A<CARRIER>][/C<CLASS>][/D<DDMMM>][/R,-CH|/R,-INF][/R,U] displays fares for a city pair without needing a PNR. /R,U applies a private/corporate (UNI) fare discount.",
   FQP: "FQP<FROM>/A<CARRIER>/D<DDMMM><TO>[/R,-CH|/R,-INF] prices a specific itinerary without creating a PNR. Chain a second leg with --- for a connection.",
   FP: "FP sets the form of payment: FP CASH, FP INV, or FP CC <VI|CA|AX> <CARDNUMBER>/<MMYY>. Required before ticketing.",
+  FM: "FM<PERCENT> sets a percentage commission (FM10 = 10%); FM<AMOUNT.NN> - a value with a decimal point - sets a flat amount instead (FM7.00). Append /P<n> to set it for one passenger only (FM10/P2). Prints on the ticket as FM *M*<pct> for a percentage or FM <ccy> <amount> for a flat one.",
   FCM: "FCM-A<AMOUNT> adds a flat agency markup; FCM-C<PERCENT> adds a percentage markup. Applied on top of the priced fare when displayed or ticketed.",
   SERVICES: "SVC <DESCRIPTION> <PRICE> records an ancillary service (bag, seat upgrade, etc.) against the PNR, adds it to the displayed total, and issues it as its own EMD document (status O). EMD/L<n> displays one, EMDV/L<n> voids it, EMDR/L<n> refunds it - a voided or refunded EMD drops back out of the total.",
   BESTBUY: "FXA lists lower fares without rebooking; FXU<n> selects one and stores a TST; FXZ<n> selects one without storing a TST; FXL shows the lowest applicable fare regardless of availability, warning LOWEST SOLD OUT // TRY WAITLIST if it isn't actually open.",
@@ -784,7 +797,7 @@ const HELP_TOPICS = {
 const HELP_CATEGORIES = {
   "PNR & BOOKING": ["AN", "NAME", "STEPS", "RT", "NU", "SP", "SCHEDULE", "DIRECTACCESS", "RECONFIRM", "OPENSEG", "OP", "COPY", "SECURITY", "HISTORYCODES", "LP", "RTFILTER"],
   "FARES & PRICING": ["PRICING", "FXP", "FXD", "FQD", "FQP", "BESTBUY", "FAREQUOTE"],
-  "TICKETING & REFUNDS": ["FP", "FCM", "SERVICES", "TTP", "TWD", "TJQ", "TWX", "TICKETING", "ETRV", "REISSUE", "REFUND", "TKTL", "BSP"],
+  "TICKETING & REFUNDS": ["FP", "FM", "FCM", "SERVICES", "TTP", "TWD", "TJQ", "TWX", "TICKETING", "ETRV", "REISSUE", "REFUND", "TKTL", "BSP"],
   "QUEUES & PROFILES": ["QUEUES", "PROFILES"],
   "SESSION & REFERENCE": ["IEP", "DECODE", "GG", "DATETIME", "SIGNIN", "PRINTING", "FHE", "TRAVELINFO"],
 };
@@ -1638,9 +1651,24 @@ const commands = {
     writeLine(`FORM OF PAYMENT: ${fop.type}${fop.card ? " " + fop.card + " ****" + fop.number.slice(-4) : ""}`, "ok");
   },
   FM: (arg) => {
-    ensurePNR().commission = arg.trim();
-    addHistory(ensurePNR(), `SET COMMISSION ${arg.trim()}`);
-    writeLine(`COMMISSION SET: ${arg.trim()}`, "ok");
+    const pnr = ensurePNR();
+    const a = arg.trim().toUpperCase();
+    const m = a.match(/^(\d+(?:\.\d+)?)(?:\/P(\d+))?$/);
+    if (!m) return writeLine("FORMAT: FM<PERCENT> (E.G. FM10) OR FM<AMOUNT.NN> (E.G. FM7.00) - APPEND /P<N> FOR ONE PASSENGER", "err");
+    const [, numStr, paxNum] = m;
+    const isAmount = numStr.includes(".");
+    const commission = { type: isAmount ? "AMOUNT" : "PERCENT", value: parseFloat(numStr) };
+    const ccy = pnr.fare?.currency || "EUR";
+    const label = isAmount ? `${ccy} ${commission.value.toFixed(2)}` : `${commission.value}%`;
+    if (paxNum) {
+      pnr.commissionByPax[paxNum] = commission;
+      addHistory(pnr, `SET COMMISSION FOR PAX ${paxNum}: ${label}`, "AF");
+      writeLine(`COMMISSION SET FOR PASSENGER ${paxNum}: ${label}`, "ok");
+    } else {
+      pnr.commission = commission;
+      addHistory(pnr, `SET COMMISSION: ${label}`, "AF");
+      writeLine(`COMMISSION SET: ${label}`, "ok");
+    }
   },
   FCM: (arg) => {
     const pnr = ensurePNR();
