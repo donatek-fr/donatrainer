@@ -359,10 +359,12 @@ function hashString(str) {
   for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
   return h;
 }
+const FULL_CLASS_POOL_LONGHAUL = ["F","A","J","C","D","Z","I","W","P","Y","B","H","K","M","L","V","S","N","Q","O","G","U","T"];
+const FULL_CLASS_POOL_SHORTHAUL = ["J","C","D","Z","I","Y","B","H","K","M","L","V","S","N","Q","O","G"];
 function randomClasses(distanceKm) {
   const longHaul = distanceKm > 3500;
-  const letters = longHaul ? ["J","C","D","Y","M","K","B","H"] : ["J","Y","M","K","B","H"];
-  const count = 4 + Math.floor(_rand() * 3);
+  const letters = longHaul ? FULL_CLASS_POOL_LONGHAUL : FULL_CLASS_POOL_SHORTHAUL;
+  const count = longHaul ? 9 + Math.floor(_rand() * 12) : 7 + Math.floor(_rand() * 8);
   const chosen = letters.slice(0, Math.min(count, letters.length));
   return chosen.map(l => `${l}${_rand() < 0.15 ? 0 : Math.floor(_rand() * 9) + 1}`).join(" ");
 }
@@ -393,6 +395,12 @@ function tifLookup(arg, kind) {
     writeLine("HEALTH: NO MANDATORY VACCINATION ON FILE FOR THIS ROUTE - CHECK THE LATEST WHO/IATA TRAVEL HEALTH ADVISORY (SIMULATED)", "hint");
   }
 }
+const TERMINAL_POOL = ["1", "2", "3", "4", "A", "B", "C", ""];
+function pickTerminal(airportCode, carrier) {
+  const h = hashString(`${airportCode}|${carrier}`);
+  const idx = ((h % TERMINAL_POOL.length) + TERMINAL_POOL.length) % TERMINAL_POOL.length;
+  return TERMINAL_POOL[idx];
+}
 function buildLeg(date, from, to, carrier, operatingCarrier) {
   const a = findAirport(from), b = findAirport(to);
   const duration = (a && b) ? flightDurationMinutes(a, b) : 120;
@@ -408,21 +416,35 @@ function buildLeg(date, from, to, carrier, operatingCarrier) {
     classes: randomClasses(distanceKm),
     durationMin: duration,
     equipment: distanceKm > 5500 ? "77W" : distanceKm > 2500 ? "789" : "320",
+    stops: 0,
+    terminalFrom: pickTerminal(from, carrier),
+    terminalTo: pickTerminal(to, carrier),
   };
-  if (operatingCarrier && operatingCarrier !== carrier) leg.operatingCarrier = operatingCarrier;
+  if (operatingCarrier && operatingCarrier !== carrier) {
+    leg.operatingCarrier = operatingCarrier;
+    leg.operatingFlight = String(Math.floor(_rand() * 9000) + 100);
+  }
   return leg;
 }
-function findConnection(from, to, excludeCity, airlineFilter) {
+function findConnections(from, to, excludeCity, airlineFilter, limit = 2) {
   const world = AMX.state.world;
   let firstLegs = world.routes.filter(r => r[0] === from && r[1] !== excludeCity);
   if (airlineFilter) firstLegs = firstLegs.filter(r => r[2] === airlineFilter);
+  const results = [];
+  const seen = new Set();
   for (const leg1 of firstLegs) {
     const hub = leg1[1];
     if (hub === to) continue;
-    let leg2 = world.routes.find(r => r[0] === hub && r[1] === to && (!airlineFilter || r[2] === airlineFilter));
-    if (leg2) return { hub, carrier1: leg1[2], carrier2: leg2[2] };
+    const leg2Options = world.routes.filter(r => r[0] === hub && r[1] === to && (!airlineFilter || r[2] === airlineFilter));
+    for (const leg2 of leg2Options) {
+      const key = `${hub}|${leg1[2]}|${leg2[2]}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      results.push({ hub, carrier1: leg1[2], carrier2: leg2[2] });
+      if (results.length >= limit) return results;
+    }
   }
-  return null;
+  return results;
 }
 function mockAvailability(date, from, to, opts = {}) {
   const world = AMX.state.world;
@@ -449,12 +471,15 @@ function mockAvailability(date, from, to, opts = {}) {
       }
     }
     if (!opts.directOnly) {
-      const conn = findConnection(from, to, opts.excludeCity, opts.airlineFilter);
-      if (conn) {
+      const conns = findConnections(from, to, opts.excludeCity, opts.airlineFilter, 2);
+      conns.forEach(conn => {
         const leg1 = buildLeg(date, from, conn.hub, conn.carrier1);
-        const leg2 = buildLeg(date, conn.hub, to, conn.carrier2);
+        const altCarriers2 = world.routes.filter(r => r[0] === conn.hub && r[1] === to && r[2] !== conn.carrier2).map(r => r[2]);
+        let operating2 = null;
+        if (altCarriers2.length && _rand() < 0.4) operating2 = altCarriers2[Math.floor(_rand() * altCarriers2.length)];
+        const leg2 = buildLeg(date, conn.hub, to, conn.carrier2, operating2);
         lines.push({ line: lines.length + 1, connection: true, segments: [leg1, leg2], from, to, carrier: `${conn.carrier1}/${conn.carrier2}` });
-      }
+      });
     }
     return lines;
   } finally {
@@ -488,6 +513,15 @@ function parseAvailArgs(arg) {
   });
   return { ddmmm, from, to, dt, returnDdmmm, opts: { airlineFilter, directOnly, classFilter, excludeCity } };
 }
+const DOW2 = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
+function availabilityHeader(label, code, destCode, dt, ddmmm) {
+  const airport = findAirport(destCode);
+  const place = airport ? `${destCode} ${airport.name.toUpperCase()}.${airport.country}` : destCode;
+  const today = new Date();
+  const daysOut = Math.max(0, Math.round((Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate()) - Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())) / 86400000));
+  const dow = DOW2[dt.getUTCDay()];
+  return `** AMADEUS ${label} - ${code} ** ${place}          ${daysOut} ${dow} ${ddmmm} 0000`;
+}
 function runAvailability(arg, code, label) {
   const q = parseAvailArgs(arg);
   if (!q) return writeLine(`FORMAT: ${code}<DDMMM><FROM><TO>[/R<DDMMM>][/A<CARRIER>][/D][/C<CLASS>][/X<CITY>]`, "err");
@@ -497,7 +531,7 @@ function runAvailability(arg, code, label) {
   AMX.state.availability.outbound = outLines;
   AMX.state.lastAvailQuery = { code, ddmmm: q.ddmmm, from: q.from, to: q.to, opts: q.opts };
 
-  writeLine(`** AMADEUS ${label} - ${code} ** ${q.ddmmm} ${q.from}-${q.to}`, "ok");
+  writeLine(availabilityHeader(label, code, q.to, q.dt, q.ddmmm), "ok");
   outLines.forEach(l => printAvailLine(l));
 
   if (q.returnDdmmm) {
@@ -506,21 +540,40 @@ function runAvailability(arg, code, label) {
     let inLines = mockAvailability(retDt, q.to, q.from, q.opts);
     if (["AA", "AD", "AE"].includes(code)) inLines = sortAvailLines(inLines, code);
     AMX.state.availability.inbound = inLines;
-    writeLine(`RETURN AVAILABILITY ${q.returnDdmmm} ${q.to}-${q.from}`, "ok");
+    writeLine(availabilityHeader(label, code, q.from, retDt, q.returnDdmmm), "ok");
     inLines.forEach(l => printAvailLine(l));
   }
 }
+function legToken(leg) {
+  if (leg.operatingCarrier) return `${leg.carrier}:${leg.operatingCarrier}${leg.operatingFlight}`;
+  return `${leg.carrier} ${leg.flight}`;
+}
+function routeToken(leg) {
+  const parts = [leg.from];
+  if (leg.terminalFrom) parts.push(leg.terminalFrom);
+  parts.push(leg.to);
+  if (leg.terminalTo) parts.push(leg.terminalTo);
+  return `/${parts.join(" ")}`;
+}
+function splitClasses(classes) {
+  const tokens = (classes || "").split(" ").filter(Boolean);
+  return { first: tokens.slice(0, 7).join(" "), rest: tokens.slice(7).join(" ") };
+}
+function formatElapsed(totalMin) {
+  return `${Math.floor(totalMin / 60)}:${fmt.pad(totalMin % 60)}`;
+}
 function printAvailLine(l) {
-  if (!l.connection) {
-    const leg = l.segments[0];
-    const mark = leg.operatingCarrier ? "*" : "";
-    writeLine(`${l.line}  ${leg.carrier}${leg.flight}${mark}  ${leg.from}${leg.to}  ${leg.dep}-${leg.arr}  ${leg.classes}`);
-    if (leg.operatingCarrier) writeLine(`   * OPERATED BY ${leg.operatingCarrier}`, "hint");
-  } else {
-    const [leg1, leg2] = l.segments;
-    writeLine(`${l.line}  ${leg1.carrier}${leg1.flight}  ${leg1.from}${leg1.to}  ${leg1.dep}-${leg1.arr}  ${leg1.classes}`);
-    writeLine(`   ${leg2.carrier}${leg2.flight}  ${leg2.from}${leg2.to}  ${leg2.dep}-${leg2.arr}  ${leg2.classes}  (CONNECTION VIA ${leg1.to})`, "hint");
-  }
+  const totalElapsed = l.segments.reduce((s, leg) => s + (leg.durationMin || 0), 0);
+  l.segments.forEach((leg, i) => {
+    const isFirst = i === 0;
+    const isLast = i === l.segments.length - 1;
+    const { first, rest } = splitClasses(leg.classes);
+    const prefix = isFirst ? String(l.line).padEnd(3) : "   ";
+    const tail = isLast ? `  E${leg.stops || 0}/${leg.equipment}      ${formatElapsed(totalElapsed)}` : "";
+    const viaSuffix = (l.connection && isLast) ? `  (CONNECTION VIA ${l.segments[0].to})` : "";
+    writeLine(`${prefix} ${legToken(leg)}  ${first}  ${routeToken(leg)}  ${leg.dep}-${leg.arr}${tail}${viaSuffix}`, isFirst ? "" : "hint");
+    if (rest) writeLine(`     ${rest}`, "hint");
+  });
 }
 
 // --- PRICING HELPERS ---
@@ -681,7 +734,7 @@ function queueCategory(q, locator) { return (q.categories && q.categories[locato
 
 // --- HELP TOPICS ---
 const HELP_TOPICS = {
-  AN: "AN<DDMMM><FROM><TO>[/R<DDMMM>][/A<CARRIER>][/D][/C<CLASS>][/X<CITY>] - Neutral availability display. /R adds a return date, /A filters one airline, /D shows direct flights only, /C focuses on a class, /X excludes a connection city. A flight number followed by * is a codeshare - the OPERATED BY line underneath names the real operating carrier.",
+  AN: "AN<DDMMM><FROM><TO>[/R<DDMMM>][/A<CARRIER>][/D][/C<CLASS>][/X<CITY>] - Neutral availability display. /R adds a return date, /A filters one airline, /D shows direct flights only, /C focuses on a class, /X excludes a connection city. A codeshare prints as <MARKETING>:<OPERATING><FLIGHT> (e.g. EY:GA9102) in place of the normal carrier+flight - the code before the colon is what you sell, the one after is who actually operates it. A city pair can offer more than one connecting routing, each its own numbered line. Airport codes carry a terminal when the airline files one (/DAC 2 FCO 3).",
   NAME: "NM1<SURNAME>/<FIRSTNAME> <TITLE> adds the passenger name element. Append (CHD/DDMMMYY) for a child or (INF/INFANTNAME/DDMMMYY) for an infant travelling on an adult's lap.",
   STEPS: "PNR creation order: AN (availability) > SS (sell) > NM (name) > AP/APE (contact) > TKOK (ticketing arrangement) > RF (received from) > ER (save).",
   RT: "RT<LOCATOR> retrieves a PNR. RT/<SURNAME> searches by exact surname, RT/<PARTIAL> by partial surname (numbered list - select with RT<n>). Bare RT redisplays the active PNR. Retrieval occasionally triggers a random schedule change (IROPS), queuing the PNR to queue 5.",

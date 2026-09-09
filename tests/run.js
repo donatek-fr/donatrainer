@@ -92,7 +92,7 @@ sandbox.AMX.state.world = {
     { code: "SIN", city: "SINGAPORE", name: "Changi", country: "SG", lat: 1.3644, lon: 103.9915 },
   ],
   airlines: [{ code: "QR", name: "Qatar Airways", numeric: "157" }, { code: "BA", name: "British Airways", numeric: "125" }],
-  routes: [["DOH", "LHR", "QR"], ["LHR", "DOH", "QR"], ["DOH", "KWI", "QR"], ["KWI", "DOH", "QR"], ["KWI", "SIN", "QR"], ["SIN", "KWI", "QR"]],
+  routes: [["DOH", "LHR", "QR"], ["LHR", "DOH", "QR"], ["DOH", "KWI", "QR"], ["KWI", "DOH", "QR"], ["KWI", "SIN", "QR"], ["SIN", "KWI", "QR"], ["KWI", "SIN", "BA"]],
   countries: [{ code: "QA", name: "QATAR" }, { code: "GB", name: "UNITED KINGDOM" }, { code: "KW", name: "KUWAIT" }, { code: "SG", name: "SINGAPORE" }],
 };
 
@@ -350,6 +350,22 @@ includesLine(sandbox, "VISA", "TIFV should print visa information");
 // --- HE topic list is grouped by category, not one flat wall of text ---
 sandbox.exec("HE");
 includesLine(sandbox, "PNR & BOOKING:", "bare HE should group topics under category headers");
+
+// --- Real-Amadeus-format pass: codeshare colon notation, multi-routing connections, header line ---
+assert(sandbox.legToken(csLeg) === `QR:BA${csLeg.operatingFlight}`, "a codeshare leg should print as <MARKETING>:<OPERATING><FLIGHT>, not a marketing flight number plus an asterisk");
+assert(sandbox.legToken(nonCsLeg) === `QR ${nonCsLeg.flight}`, "a non-codeshare leg should print as <CARRIER> <FLIGHT> with a space, matching the real display");
+
+sandbox.exec("IG");
+sandbox.exec("AN15DECDOHSIN");
+const dohSinLines = sandbox.AMX.state.availability.outbound;
+assert(dohSinLines.length >= 2, "DOH-SIN has two distinct KWI connection routings (QR and BA on the second leg) in the test world and should surface both as separate lines");
+includesLine(sandbox, "CONNECTION VIA KWI", "DOH-SIN should still be offered as a one-stop connection via KWI");
+
+sandbox.exec("IG");
+sandbox.exec("AN15DECDOHLHR");
+includesLine(sandbox, "HEATHROW.GB", "the availability header should name the destination airport and country, not just repeat the code");
+const headerLine = outputLines(sandbox).find(l => l.includes("AMADEUS AVAILABILITY"));
+assert(!!headerLine && /\b(SU|MO|TU|WE|TH|FR|SA)\b/.test(headerLine), "the availability header should include a two-letter day-of-week code");
 
 console.log(`\n${pass} passed, ${fail} failed.`);
 if (fail > 0) process.exit(1);

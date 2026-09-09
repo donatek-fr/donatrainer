@@ -94,7 +94,7 @@
             <span class="syntax">AN&lt;DDMMM&gt;&lt;FROM&gt;&lt;TO&gt;</span>
             <div class="desc"><code>AN15DECDOHLHR</code> — availability from Doha to London Heathrow on 15 December.</div>
           </div>
-          <p>Durations and arrival times are calculated from real airport coordinates — a Doha–London flight really does take about seven hours here, and an overnight sector shows <code>+1</code> on the arrival time when it lands the next day.</p>
+          <p>Durations and arrival times are calculated from real airport coordinates — a Doha–London flight really does take about seven hours here, and an overnight sector shows <code>+1</code> on the arrival time when it lands the next day. The header line names the destination airport itself and its country, plus how many days out the search is and the day of the week — <code>** AMADEUS AVAILABILITY - AN ** LHR HEATHROW.GB   7 TU 15DEC 0000</code> — the same shape a real display uses.</p>
           <ul class="tick-list">
             <li><strong>/R&lt;DDMMM&gt;</strong> — add a return date in the same entry: <code>AN15DECDOHLHR/R22DEC</code>.</li>
             <li><strong>/A&lt;CARRIER&gt;</strong> — show one airline only: <code>AN15DECDOHLHR/AQR</code>.</li>
@@ -102,8 +102,9 @@
             <li><strong>/C&lt;CLASS&gt;</strong> — focus the display on one booking class.</li>
             <li><strong>/X&lt;CITY&gt;</strong> — exclude a connection city, e.g. <code>/XMCT</code> to avoid routing through Muscat.</li>
           </ul>
-          <p class="muted">If there's no nonstop service between two cities, the terminal will offer a one-stop routing through a common hub automatically — exactly the way a real display falls back to connections.</p>
-          <p class="muted">A flight number followed by <code>*</code> is a codeshare — an <code>OPERATED BY</code> line underneath names the airline that actually flies it, the same distinction a real display makes between marketing and operating carrier.</p>
+          <p class="muted">If there's no nonstop service between two cities, the terminal offers up to two one-stop routings through a shared hub automatically — real displays commonly show several connecting options side by side rather than just one, and this is where a lot of the apparent carrier variety on a real screen actually comes from.</p>
+          <p class="muted">A codeshare prints as <code>&lt;MARKETING&gt;:&lt;OPERATING&gt;&lt;FLIGHT&gt;</code> — e.g. <code>EY:GA9102</code> means you're selling Etihad inventory on a flight actually operated by GA9102. That's the real notation; there's no separate footnote line. Airport codes carry a terminal when the airline files one for that pairing, e.g. <code>/DAC 2 FCO 3</code>.</p>
+          <p class="muted">Booking-class inventory is shown in full — 7 to 20 RBD codes per flight depending on the route, wrapping onto one continuation line after the 7th exactly like a real screen. The last leg of each option also prints a stop count and equipment code (<code>E0/788</code>) followed by the option's total elapsed time.</p>
           <p><strong>Other display orders and follow-ups.</strong> <code>SN</code> is the schedule equivalent of <code>AN</code>; <code>AA</code>, <code>AD</code> and <code>AE</code> re-sort the same flights by arrival time, departure time, or elapsed flight time instead of renumbering from scratch.</p>
           <div class="cmd-grid">
             <div class="cmd-block"><span class="syntax">AC&lt;DDMMM&gt; / AC&lt;FROM&gt;&lt;TO&gt; / AC/A&lt;CARRIER&gt;</span><div class="desc">Modify the last availability display's date, city pair, or carrier without retyping the whole entry. <code>AC2</code> / <code>AC-3</code> shift the date forward/back by N days. <code>SC</code> is an identical alias for schedule follow-ups.</div></div>
