@@ -571,8 +571,7 @@ function printAvailLine(l) {
     const { first, rest } = splitClasses(leg.classes);
     const prefix = isFirst ? String(l.line).padEnd(3) : "   ";
     const tail = isLast ? `  E${leg.stops || 0}/${leg.equipment}      ${formatElapsed(totalElapsed)}` : "";
-    const viaSuffix = (l.connection && isLast) ? `  (CONNECTION VIA ${l.segments[0].to})` : "";
-    writeLine(`${prefix} ${legToken(leg)}  ${first}  ${routeToken(leg)}  ${leg.dep}-${leg.arr}${tail}${viaSuffix}`, isFirst ? "" : "hint");
+    writeLine(`${prefix} ${legToken(leg)}  ${first}  ${routeToken(leg)}  ${leg.dep}-${leg.arr}${tail}`, isFirst ? "" : "hint");
     if (rest) writeLine(`     ${rest}`, "hint");
   });
 }
@@ -623,7 +622,7 @@ function segmentFare(seg, lowest) {
   const tax = Math.min(95, 18 + distanceKm * 0.011);
   return { base, tax, cabin, distanceKm };
 }
-function computeFare(pnr, idxList, lowest, uniFare) {
+function computeFare(pnr, idxList, lowest, uniFare, feePercent, markupPercent) {
   let totalBase = 0;
   let totalTaxes = 0;
   idxList.forEach(i => {
@@ -637,15 +636,33 @@ function computeFare(pnr, idxList, lowest, uniFare) {
     });
   });
   if (uniFare) totalBase *= 0.85;
+  if (feePercent) totalBase *= (1 + feePercent / 100);
+  if (markupPercent) totalBase *= (1 + markupPercent / 100);
   totalBase = Math.round(totalBase * 100) / 100;
   totalTaxes = Math.round(totalTaxes * 100) / 100;
-  return { currency: "EUR", base: totalBase, taxes: totalTaxes, total: Math.round((totalBase + totalTaxes) * 100) / 100, scope: idxList, lowest: !!lowest, uniFare: !!uniFare };
+  return {
+    currency: "EUR", base: totalBase, taxes: totalTaxes, total: Math.round((totalBase + totalTaxes) * 100) / 100,
+    scope: idxList, lowest: !!lowest, uniFare: !!uniFare,
+    feePercent: feePercent || 0, markupPercent: markupPercent || 0,
+  };
 }
 function parsePricingScope(arg) { return arg.trim().toUpperCase().replace(/^\//, "") || null; }
 function extractUniFare(arg) {
-  const upper = arg.trim().toUpperCase();
-  if (/(^|\/)R,U(\/|$)/.test(upper)) return { isUni: true, rest: upper.replace(/\/?R,U/, "") };
-  return { isUni: false, rest: upper };
+  let upper = arg.trim().toUpperCase();
+  let feePercent = 0, markupPercent = 0;
+  let m;
+  if ((m = upper.match(/\/F-P(\d+(?:\.\d+)?)/))) { feePercent = parseFloat(m[1]); upper = upper.replace(m[0], ""); }
+  if ((m = upper.match(/\/M-P(\d+(?:\.\d+)?)/))) { markupPercent = parseFloat(m[1]); upper = upper.replace(m[0], ""); }
+  const isUni = /(^|\/)R,U(\/|$)/.test(upper);
+  if (isUni) upper = upper.replace(/\/?R,U/, "");
+  return { isUni, feePercent, markupPercent, rest: upper };
+}
+function modifierSuffix(mods) {
+  const parts = [];
+  if (mods.isUni) parts.push("PRIVATE/CORPORATE FARE");
+  if (mods.feePercent) parts.push(`FEE +${mods.feePercent}%`);
+  if (mods.markupPercent) parts.push(`MARKUP +${mods.markupPercent}%`);
+  return parts.length ? " - " + parts.join(", ") : "";
 }
 const SEASON_MULT = { JAN: 0.92, FEB: 0.92, MAR: 1.05, APR: 0.95, MAY: 0.95, JUN: 1.05, JUL: 1.18, AUG: 1.18, SEP: 1.05, OCT: 0.92, NOV: 1.05, DEC: 1.18 };
 function seasonalMultiplier(ddmmm) {
@@ -752,8 +769,8 @@ const HELP_TOPICS = {
   RT: "RT<LOCATOR> retrieves a PNR. RT/<SURNAME> searches by exact surname, RT/<PARTIAL> by partial surname (numbered list - select with RT<n>). Bare RT redisplays the active PNR. Retrieval occasionally triggers a random schedule change (IROPS), queuing the PNR to queue 5.",
   NU: "NU<OLD#>/<NEW#><SURNAME>/<FIRSTNAME> [TITLE] updates a passenger's name in the active PNR.",
   SP: "SP <PAX NUMBER>[,<PAX NUMBER>...] splits the listed passengers (and the shared itinerary) into a new, unsaved PNR - save it with ER.",
-  PRICING: "Fares are calculated from real distance, booking class, and travel-month seasonality (Jul/Aug/Dec price higher, off-peak lower) - not a flat number. FXX/FXR display a fare without storing it; FXP/FXB store it as a TST. FXR/FXB also re-check the class actually open on file and use the cheapest one available, same as a real lowest-fare search. Add /P1, /PAX or /INF to price a subset of passengers, or /R,U anywhere in the entry for a discounted private/corporate (UNI) fare.",
-  FXP: "FXP prices the active itinerary and stores the result as a TST, including the fare calculation (FC) line, fare basis, tax breakdown by code, and NVB/NVA validity dates. Use /P1 for passenger 1 only, /PAX for adults+children, /INF for the infant only.",
+  PRICING: "Fares are calculated from real distance, booking class, and travel-month seasonality (Jul/Aug/Dec price higher, off-peak lower) - not a flat number. FXX/FXR display a fare without storing it; FXP/FXB store it as a TST. FXR/FXB also re-check the class actually open on file and use the cheapest one available, same as a real lowest-fare search. Add /P1, /PAX or /INF to price a subset of passengers, /R,U anywhere in the entry for a discounted private/corporate (UNI) fare, /F-P<n> to add a percentage fee during pricing (FXP/F-P10 = +10%), or /M-P<n> to add a percentage markup (FXB/M-P5 = +5%).",
+  FXP: "FXP prices the active itinerary and stores the result as a TST, including the fare calculation (FC) line, fare basis, tax breakdown by code, and NVB/NVA validity dates. Use /P1 for passenger 1 only, /PAX for adults+children, /INF for the infant only. /F-P<n> adds a percentage fee, /M-P<n> a percentage markup, applied during the calculation.",
   FXD: "FXD<FROM><TO> (or FXD<N><FROM><TO>) runs the Master Pricer and returns a ranked list of fare recommendations for the city pair.",
   FQD: "FQD<FROM><TO>[/A<CARRIER>][/C<CLASS>][/D<DDMMM>][/R,-CH|/R,-INF][/R,U] displays fares for a city pair without needing a PNR. /R,U applies a private/corporate (UNI) fare discount.",
   FQP: "FQP<FROM>/A<CARRIER>/D<DDMMM><TO>[/R,-CH|/R,-INF] prices a specific itinerary without creating a PNR. Chain a second leg with --- for a connection.",
@@ -785,7 +802,8 @@ const HELP_TOPICS = {
   SECURITY: "ES<OFFICE ID>-<R|B|N> adds a PNR security element (Read / Read+Write / No access) for another office. ESD displays them, ESX<n> cancels one. This is actually enforced: RT refuses to retrieve a PNR when the currently signed-in office (JI.../O<OFFICEID>, see HE SIGNIN) has an N entry on file for it.",
   COPY: "RRN copies the full PNR (names + itinerary) into a new, unsaved booking. RRI copies only the itinerary (add new names). RRP copies only the passengers (add a new itinerary).",
   FAREQUOTE: "After FQD, follow-up entries reference a printed line number: FQN<n> fare rules, FQK<n> tax breakdown, FQR<n> routing, FQS<n> booking-class info. Standalone: FQC converts currency (FQC100GBP or FQC100GBP/USD), optionally for a past date (FQC100GBP/USD/15JAN); FQA lists the rate-of-exchange table for today or a given date (FQA15JAN); FQX<FROM><TO>/<KG> prices excess baggage, FQM<FROM><TO>[<TO2>...] calculates mileage. Rates drift slightly day to day, same as a real daily ROE.",
-  TICKETING: "TTK follow-up entries edit the active TST: /NF-<amt> net fare, /V<DDMMM><DDMMM> validity dates, /F<amt> fare override, /X<amt><taxcode> add a tax, /T<amt> additional collection (prefix /T<n>/ to target one TST by number). FE <text> sets the endorsement and FT <tourcode> sets the tour code, both printed on TWD/TTP/ITR-P. TTU/T<n>/S<segs> flags a TST's segments for reissue; TTF clears a TST's change flag.",
+  TICKETING: "TTK (or TTI, same command) follow-up entries edit the active TST: /V validates it, /NF-<amt> net fare, /V<DDMMM><DDMMM> validity dates, /F<amt> fare override, /X<amt>-<taxcode> add or update a tax, /T<amt> additional collection (prefix /T<n>/ to target one TST by number). FE <text> sets the endorsement and FT <tourcode> sets the tour code, both printed on TWD/TTP/ITR-P. TTU/T<n>/S<segs> flags a TST's segments for reissue; TTF clears a TST's change flag.",
+  TQT: "TQT displays the stored TST (fare, tax breakdown, FC, FB/NVB/NVA, FE, FT, additional collection, commission) for the active PNR. TQT/T<n> selects a specific TST by number when more than one is on file. XE TST deletes every stored TST on the PNR; XE TST<n> (e.g. XE TST1) deletes just that one.",
   ETRV: "TTP/ETRV/L<n> revalidates ticket line n after a segment change with no fare impact (status stays O, no new ticket issued) - use it instead of a full reissue when nothing but the flight/date/class actually changed.",
   REISSUE: "To reissue: rebook (SB), re-price the new segments (FXP), pull the original ticket's issue data with FO*L<n> (the line of the ticket being replaced), set the additional collection with TTK/T<amount>, then TTP as usual. The original ticket flips to status E (exchanged) and the new ticket prints a REISSUE OF line.",
   REFUND: "TRF[/L<n>] opens a refund record for a ticket (prints fare paid and the default cancellation fee). TRFU/CP<amt>[A] adjusts the penalty (A = amount, omit for percent); TRFU/U<amt> sets the fare already used for a partial refund. TRFT shows the refundable tax breakdown. TRFP finalizes it (status becomes R). TRFIG discards the draft instead.",
@@ -797,7 +815,7 @@ const HELP_TOPICS = {
 const HELP_CATEGORIES = {
   "PNR & BOOKING": ["AN", "NAME", "STEPS", "RT", "NU", "SP", "SCHEDULE", "DIRECTACCESS", "RECONFIRM", "OPENSEG", "OP", "COPY", "SECURITY", "HISTORYCODES", "LP", "RTFILTER"],
   "FARES & PRICING": ["PRICING", "FXP", "FXD", "FQD", "FQP", "BESTBUY", "FAREQUOTE"],
-  "TICKETING & REFUNDS": ["FP", "FM", "FCM", "SERVICES", "TTP", "TWD", "TJQ", "TWX", "TICKETING", "ETRV", "REISSUE", "REFUND", "TKTL", "BSP"],
+  "TICKETING & REFUNDS": ["FP", "FM", "FCM", "SERVICES", "TTP", "TWD", "TJQ", "TWX", "TICKETING", "TQT", "ETRV", "REISSUE", "REFUND", "TKTL", "BSP"],
   "QUEUES & PROFILES": ["QUEUES", "PROFILES"],
   "SESSION & REFERENCE": ["IEP", "DECODE", "GG", "DATETIME", "SIGNIN", "PRINTING", "FHE", "TRAVELINFO"],
 };
@@ -1236,6 +1254,23 @@ const commands = {
   },
   XE: (arg) => {
     const pnr = ensurePNR();
+    const tstMatch = arg.trim().toUpperCase().match(/^TST(\d+)?$/);
+    if (tstMatch) {
+      if (tstMatch[1]) {
+        const idx = parseInt(tstMatch[1], 10) - 1;
+        if (!pnr.tst[idx]) return writeLine("TST NOT FOUND", "err");
+        pnr.tst.splice(idx, 1);
+        if (pnr.fare && !pnr.tst.length) pnr.fare = null;
+        else if (pnr.fare) pnr.fare = pnr.tst[pnr.tst.length - 1];
+        addHistory(pnr, `DELETED TST${tstMatch[1]}`, "XF");
+        return writeLine(`TST${tstMatch[1]} DELETED`, "ok");
+      }
+      const count = pnr.tst.length;
+      pnr.tst = [];
+      pnr.fare = null;
+      addHistory(pnr, `DELETED ALL STORED FARES (${count} TST)`, "XF");
+      return writeLine(`ALL STORED FARES DELETED (${count} TST)`, "ok");
+    }
     const n = parseInt(arg.trim(), 10);
     const items = buildElementList(pnr);
     const item = items[n - 1];
@@ -1474,46 +1509,46 @@ const commands = {
   FXX: (arg) => {
     const pnr = ensurePNR();
     if (!pnr.segments.length) return writeLine("NO SEGMENTS TO PRICE", "err");
-    const { isUni, rest } = extractUniFare(arg);
-    const idx = selectPassengersByScope(pnr, parsePricingScope(rest));
+    const mods = extractUniFare(arg);
+    const idx = selectPassengersByScope(pnr, parsePricingScope(mods.rest));
     if (!idx.length) return writeLine("NO PASSENGERS MATCH SCOPE", "err");
-    const fare = computeFare(pnr, idx, false, isUni);
-    writeLine(`PRICED (NOT STORED): ${fare.currency} ${fare.total.toFixed(2)}${isUni ? " (PRIVATE/CORPORATE FARE)" : ""}`, "ok");
+    const fare = computeFare(pnr, idx, false, mods.isUni, mods.feePercent, mods.markupPercent);
+    writeLine(`PRICED (NOT STORED): ${fare.currency} ${fare.total.toFixed(2)}${modifierSuffix(mods)}`, "ok");
   },
   FXR: (arg) => {
     const pnr = ensurePNR();
     if (!pnr.segments.length) return writeLine("NO SEGMENTS TO PRICE", "err");
-    const { isUni, rest } = extractUniFare(arg);
-    const idx = selectPassengersByScope(pnr, parsePricingScope(rest));
+    const mods = extractUniFare(arg);
+    const idx = selectPassengersByScope(pnr, parsePricingScope(mods.rest));
     if (!idx.length) return writeLine("NO PASSENGERS MATCH SCOPE", "err");
-    const fare = computeFare(pnr, idx, true, isUni);
-    writeLine(`LOWEST FARE FOUND (NOT STORED): ${fare.currency} ${fare.total.toFixed(2)}${isUni ? " (PRIVATE/CORPORATE FARE)" : ""}`, "ok");
+    const fare = computeFare(pnr, idx, true, mods.isUni, mods.feePercent, mods.markupPercent);
+    writeLine(`LOWEST FARE FOUND (NOT STORED): ${fare.currency} ${fare.total.toFixed(2)}${modifierSuffix(mods)}`, "ok");
   },
   FXP: (arg) => {
     const pnr = ensurePNR();
     if (!pnr.segments.length) return writeLine("NO SEGMENTS TO PRICE", "err");
-    const { isUni, rest } = extractUniFare(arg);
-    const idx = selectPassengersByScope(pnr, parsePricingScope(rest));
+    const mods = extractUniFare(arg);
+    const idx = selectPassengersByScope(pnr, parsePricingScope(mods.rest));
     if (!idx.length) return writeLine("NO PASSENGERS MATCH SCOPE", "err");
-    const fare = decorateFare(pnr, computeFare(pnr, idx, false, isUni));
+    const fare = decorateFare(pnr, computeFare(pnr, idx, false, mods.isUni, mods.feePercent, mods.markupPercent));
     pnr.fare = fare;
     pnr.tst.push({ id: pnr.tst.length + 1, ...fare, createdAt: fmt.nowDate() });
     addHistory(pnr, "PRICED PNR (FXP)");
-    writeLine(`TST${pnr.tst.length} CREATED${isUni ? " - PRIVATE/CORPORATE FARE" : ""}`, "ok");
+    writeLine(`TST${pnr.tst.length} CREATED${modifierSuffix(mods)}`, "ok");
     writeLine(`FARE F ${fare.currency} ${fare.base.toFixed(2)}  FB ${fare.fareBasis}  TOTAL ${fare.currency} ${fare.total.toFixed(2)}`, "hint");
     writeLine(`FC ${fare.fareCalc}`, "hint");
   },
   FXB: (arg) => {
     const pnr = ensurePNR();
     if (!pnr.segments.length) return writeLine("NO SEGMENTS TO PRICE", "err");
-    const { isUni, rest } = extractUniFare(arg);
-    const idx = selectPassengersByScope(pnr, parsePricingScope(rest));
+    const mods = extractUniFare(arg);
+    const idx = selectPassengersByScope(pnr, parsePricingScope(mods.rest));
     if (!idx.length) return writeLine("NO PASSENGERS MATCH SCOPE", "err");
-    const fare = decorateFare(pnr, computeFare(pnr, idx, true, isUni));
+    const fare = decorateFare(pnr, computeFare(pnr, idx, true, mods.isUni, mods.feePercent, mods.markupPercent));
     pnr.fare = fare;
     pnr.tst.push({ id: pnr.tst.length + 1, ...fare, createdAt: fmt.nowDate() });
     addHistory(pnr, "PRICED PNR WITH LOWEST FARE (FXB)");
-    writeLine(`TST${pnr.tst.length} CREATED - LOWEST FARE${isUni ? " - PRIVATE/CORPORATE FARE" : ""}`, "ok");
+    writeLine(`TST${pnr.tst.length} CREATED - LOWEST FARE${modifierSuffix(mods)}`, "ok");
     writeLine(`FARE F ${fare.currency} ${fare.base.toFixed(2)}  FB ${fare.fareBasis}  TOTAL ${fare.currency} ${fare.total.toFixed(2)}`, "hint");
     writeLine(`FC ${fare.fareCalc}`, "hint");
   },
@@ -1918,13 +1953,15 @@ const commands = {
     if (!tst) return writeLine("NO TST ON FILE - PRICE WITH FXP FIRST", "err");
     const body = tMatch ? a.slice(tMatch[0].length) : a.replace(/^\//, "");
     let m;
+    if (body === "V") { addHistory(pnr, `TTK VALIDATED TST${tst.id}`, "CF"); return writeLine(`TST${tst.id} VALIDATED`, "ok"); }
     if ((m = body.match(/^NF-(\d+(?:\.\d+)?)$/))) { tst.netFare = parseFloat(m[1]); addHistory(pnr, `TTK SET NET FARE ${m[1]}`, "CF"); return writeLine(`NET FARE SET: ${tst.currency} ${m[1]}`, "ok"); }
     if ((m = body.match(/^V(\d{1,2}[A-Z]{3})(\d{1,2}[A-Z]{3})$/))) { tst.nvb = m[1]; tst.nva = m[2]; addHistory(pnr, `TTK SET NVB/NVA ${m[1]}/${m[2]}`, "CF"); return writeLine(`NVB ${m[1]}  NVA ${m[2]} SET`, "ok"); }
     if ((m = body.match(/^F(\d+(?:\.\d+)?)$/))) { tst.base = parseFloat(m[1]); addHistory(pnr, `TTK OVERRODE FARE AMOUNT ${m[1]}`, "CF"); return writeLine(`FARE AMOUNT SET: ${tst.currency} ${m[1]}`, "ok"); }
-    if ((m = body.match(/^X(\d+(?:\.\d+)?)([A-Z]{2})$/))) { tst.taxBreakdown = tst.taxBreakdown || []; tst.taxBreakdown.push({ code: m[2], amount: parseFloat(m[1]) }); addHistory(pnr, `TTK ADDED TAX ${m[2]} ${m[1]}`, "CF"); return writeLine(`TAX ${m[2]} ${tst.currency} ${m[1]} ADDED`, "ok"); }
+    if ((m = body.match(/^X(\d+(?:\.\d+)?)-?([A-Z]{2})$/))) { tst.taxBreakdown = tst.taxBreakdown || []; tst.taxBreakdown.push({ code: m[2], amount: parseFloat(m[1]) }); addHistory(pnr, `TTK ADDED TAX ${m[2]} ${m[1]}`, "CF"); return writeLine(`TAX ${m[2]} ${tst.currency} ${m[1]} ADDED`, "ok"); }
     if ((m = body.match(/^T(\d+(?:\.\d+)?)$/))) { tst.additionalCollection = parseFloat(m[1]); addHistory(pnr, `TTK SET ADDITIONAL COLLECTION ${m[1]}`, "CF"); return writeLine(`ADDITIONAL COLLECTION SET: ${tst.currency} ${m[1]}`, "ok"); }
-    writeLine("FORMAT: TTK/NF-<AMT> | TTK/V<DDMMM><DDMMM> | TTK/F<AMT> | TTK/X<AMT><TAXCODE> | TTK/T<AMT> (PREFIX /T<N>/ TO TARGET A SPECIFIC TST)", "err");
+    writeLine("FORMAT: TTK/V (VALIDATE) | TTK/NF-<AMT> | TTK/V<DDMMM><DDMMM> | TTK/F<AMT> | TTK/X<AMT>-<TAXCODE> | TTK/T<AMT> (PREFIX /T<N>/ TO TARGET A SPECIFIC TST)", "err");
   },
+  TTI: (arg) => commands.TTK(arg),
   TTU: (arg) => {
     const m = arg.trim().toUpperCase().match(/^\/T(\d+)\/S([\d,-]+)$/);
     if (!m) return writeLine("FORMAT: TTU/T<TST#>/S<SEGMENTS>", "err");
@@ -1936,6 +1973,28 @@ const commands = {
     writeLine(`TST${m[1]} FLAGGED FOR REISSUE ON SEGMENTS ${m[2]}`, "ok");
   },
   TTF: () => writeLine("CHANGE FLAG REMOVED FROM TST", "ok"),
+  TQT: (arg) => {
+    const pnr = AMX.state.pnr;
+    if (!pnr || !pnr.tst.length) return writeLine("NO TST ON FILE - PRICE WITH FXP FIRST", "err");
+    const m = arg.trim().toUpperCase().match(/^\/T(\d+)$/);
+    const tst = m ? pnr.tst[parseInt(m[1], 10) - 1] : pnrTstLatest(pnr);
+    if (!tst) return writeLine("TST NOT FOUND", "err");
+    writeLine(`TST${tst.id}   ${AMX.state.office}  ${tst.createdAt || fmt.nowDate()}  ${(tst.scope || []).length} PAX`, "ok");
+    (tst.scope || []).forEach(i => {
+      const pax = pnr.passengers[i];
+      if (pax) writeLine(`  ${i + 1}.${pax.name}`, "hint");
+    });
+    writeLine(`  FARE F ${tst.currency} ${tst.base.toFixed(2)}${tst.netFare != null ? "  NETFARE " + tst.currency + " " + tst.netFare.toFixed(2) : ""}`, "hint");
+    (tst.taxBreakdown || []).forEach(tb => writeLine(`  TAX      ${tb.amount.toFixed(2)}${tb.code}`, "hint"));
+    writeLine(`  TOTAL    ${tst.currency} ${tst.total.toFixed(2)}`, "hint");
+    writeLine(`  FC ${tst.fareCalc}`, "hint");
+    writeLine(`  FB ${tst.fareBasis}  NVB${tst.nvb}  NVA${tst.nva}`, "hint");
+    writeLine(`  FE ${pnr.endorsementOverride || tst.endorsement}`, "hint");
+    if (pnr.tourCode) writeLine(`  FT ${pnr.tourCode}`, "hint");
+    if (tst.additionalCollection != null) writeLine(`  ADDITIONAL COLLECTION ${tst.currency} ${tst.additionalCollection.toFixed(2)}`, "hint");
+    const commTxt = commissionLine(pnr, (tst.scope || [])[0] ?? 0);
+    if (commTxt) writeLine(`  ${commTxt}`, "hint");
+  },
   FE: (arg) => {
     const pnr = ensurePNR();
     pnr.endorsementOverride = arg.trim().toUpperCase();

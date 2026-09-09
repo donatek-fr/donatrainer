@@ -267,7 +267,8 @@ assert(!nonCsLeg.operatingCarrier, "buildLeg should not flag a codeshare when op
 // --- GAP-05: married segments - cancelling one leg of a connection cancels both ---
 sandbox.exec("IG");
 sandbox.exec("AN15DECDOHSIN");
-includesLine(sandbox, "CONNECTION VIA KWI", "DOH-SIN should be offered as a one-stop connection via KWI in the test world");
+const marriedConnLine = sandbox.AMX.state.availability.outbound.find(l => l.connection && l.segments[0].to === "KWI");
+assert(!!marriedConnLine && marriedConnLine.segments.length === 2, "DOH-SIN should be offered as a one-stop connection via KWI in the test world");
 sandbox.exec("SS1Y1");
 assert(sandbox.AMX.state.pnr.segments.length === 2, "selling a connection should push both married legs onto the PNR");
 assert(sandbox.AMX.state.pnr.segments[0].marriedGroup && sandbox.AMX.state.pnr.segments[0].marriedGroup === sandbox.AMX.state.pnr.segments[1].marriedGroup, "both legs of a connection should share the same marriedGroup id");
@@ -359,7 +360,7 @@ sandbox.exec("IG");
 sandbox.exec("AN15DECDOHSIN");
 const dohSinLines = sandbox.AMX.state.availability.outbound;
 assert(dohSinLines.length >= 2, "DOH-SIN has two distinct KWI connection routings (QR and BA on the second leg) in the test world and should surface both as separate lines");
-includesLine(sandbox, "CONNECTION VIA KWI", "DOH-SIN should still be offered as a one-stop connection via KWI");
+assert(dohSinLines.every(l => l.connection && l.segments[0].to === "KWI" && l.segments.length === 2), "DOH-SIN should still be offered as one-stop connections via KWI");
 
 sandbox.exec("IG");
 sandbox.exec("AN15DECDOHLHR");
@@ -386,6 +387,66 @@ sandbox.exec("FV QR");
 sandbox.exec("FP CASH");
 sandbox.exec("TTP");
 includesLine(sandbox, "FM *M*5", "the ticket should print the passenger's own commission override (5%), not the PNR-level 7.00 amount, since a /P1 override is on file");
+
+// --- Pricing modifiers: /F-P<n> fee and /M-P<n> markup on FXP/FXB ---
+sandbox.exec("IG");
+sandbox.exec("AN15DECDOHLHR");
+sandbox.exec("SS1Y1");
+sandbox.exec("NM1MODTEST/TEST MR");
+sandbox.exec("FXP");
+const baseFareNoMod = sandbox.AMX.state.pnr.fare.base;
+sandbox.exec("IG");
+sandbox.exec("AN15DECDOHLHR");
+sandbox.exec("SS1Y1");
+sandbox.exec("NM1MODTEST/TEST MR");
+sandbox.exec("FXP/F-P10");
+const feeFareBase = sandbox.AMX.state.pnr.fare.base;
+assert(sandbox.AMX.state.pnr.fare.feePercent === 10, "the fare record should retain the fee percent that was applied");
+approx(feeFareBase / baseFareNoMod, 1.10, 0.01, "FXP/F-P10 should add a 10% fee to the base fare during calculation");
+
+sandbox.exec("IG");
+sandbox.exec("AN15DECDOHLHR");
+sandbox.exec("SS1Y1");
+sandbox.exec("NM1MODTEST/TEST MR");
+sandbox.exec("FXB");
+const baseFareFXB = sandbox.AMX.state.pnr.fare.base;
+sandbox.exec("IG");
+sandbox.exec("AN15DECDOHLHR");
+sandbox.exec("SS1Y1");
+sandbox.exec("NM1MODTEST/TEST MR");
+sandbox.exec("FXB/M-P5");
+const markupFareBase = sandbox.AMX.state.pnr.fare.base;
+assert(sandbox.AMX.state.pnr.fare.markupPercent === 5, "the fare record should retain the markup percent that was applied");
+approx(markupFareBase / baseFareFXB, 1.05, 0.01, "FXB/M-P5 should find the lowest fare and add a 5% markup");
+
+// --- TQT displays the stored TST; XE TST / XE TST<n> delete it ---
+sandbox.exec("IG");
+sandbox.exec("AN15DECDOHLHR");
+sandbox.exec("SS1Y1");
+sandbox.exec("NM1TQTTEST/TEST MR");
+sandbox.exec("FXP");
+sandbox.exec("TQT");
+includesLine(sandbox, "TQTTEST", "TQT should display the passenger name from the stored TST");
+includesLine(sandbox, "FARE F", "TQT should print the FARE line from the stored TST");
+sandbox.exec("XE TST");
+assert(sandbox.AMX.state.pnr.tst.length === 0, "XE TST should delete every stored TST from the active PNR");
+assert(sandbox.AMX.state.pnr.fare === null, "XE TST should clear the PNR's active fare once no TST remain");
+
+sandbox.exec("FXP");
+sandbox.exec("FXP");
+assert(sandbox.AMX.state.pnr.tst.length === 2, "pricing twice should create two stored TSTs");
+sandbox.exec("XE TST1");
+assert(sandbox.AMX.state.pnr.tst.length === 1, "XE TST1 should delete only the specified TST");
+assert(sandbox.AMX.state.pnr.tst[0].id === 2, "the remaining TST after XE TST1 should be TST2, not a renumbered TST1");
+
+// --- TTI is the same command as TTK, plus a hyphenated tax-code format and a bare /V validate ---
+sandbox.exec("TTI/F750.00");
+assert(Math.abs(sandbox.pnrTstLatest(sandbox.AMX.state.pnr).base - 750) < 0.001, "TTI/F<amt> should override the TST base fare, same as TTK/F<amt>");
+sandbox.exec("TTI/X15.00-XY");
+const hyphenTax = sandbox.pnrTstLatest(sandbox.AMX.state.pnr).taxBreakdown.find((t) => t.code === "XY");
+assert(!!hyphenTax && hyphenTax.amount === 15, "TTI/X<amt>-<code> should add a tax line using the hyphenated format from the real TTI syntax");
+sandbox.exec("TTI/V");
+includesLine(sandbox, "VALIDATED", "TTI/V (bare, no dates) should validate the TST instead of erroring");
 
 console.log(`\n${pass} passed, ${fail} failed.`);
 if (fail > 0) process.exit(1);

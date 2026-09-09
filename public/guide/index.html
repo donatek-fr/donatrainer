@@ -210,6 +210,7 @@
             </table>
           </div>
           <p>All four accept a passenger scope: <code>/P1</code> (passenger 1 only), <code>/PAX</code> (adults and children), <code>/INF</code> (infant only) — and <code>/R,U</code> anywhere in the entry for a discounted private/corporate (UNI) fare. The fare itself is calculated from real distance, the booking class you sold, and the travel month's seasonality (Jul/Aug/Dec price higher, quieter months lower) — a short hop in a discounted class in February prices well below a long-haul in a full-fare class in August. <code>FXR</code> and <code>FXB</code> additionally re-check the class inventory left open on the segment and price against whichever class is actually cheapest and available, exactly like a real lowest-fare search.</p>
+          <p><strong>Pricing modifiers.</strong> Add a percentage fee or markup at pricing time, before a TST even exists, with <code>/F-P&lt;n&gt;</code> (fee) or <code>/M-P&lt;n&gt;</code> (markup) on any of the four pricing entries — e.g. <code>FXP/F-P10</code> adds a 10% fee during the calculation, <code>FXB/M-P5</code> finds the lowest fare and adds a 5% markup on top. Both stack with <code>/R,U</code> and the passenger-scope qualifiers.</p>
           <div class="callout"><strong>Known simplification:</strong> when several fares would genuinely apply, a real system returns a numbered list and waits for <code>FXT&lt;line&gt;/P&lt;pax&gt;</code> to pick one. Here, <code>FXP</code>/<code>FXB</code> always compute and store one fare directly — <code>FXT</code> itself isn't implemented.</div>
           <div class="cmd-grid">
             <div class="cmd-block"><span class="syntax">FQD&lt;FROM&gt;&lt;TO&gt;[/A&lt;CARRIER&gt;][/D&lt;DDMMM&gt;][/C&lt;CCY&gt;]</span><div class="desc">Fare display for a city pair, no PNR required. <code>/CUSD</code>, <code>/CGBP</code>, <code>/CQAR</code> etc. re-price in another currency.</div></div>
@@ -258,9 +259,12 @@
             <div class="cmd-block"><span class="syntax">TTP/ETRV/L&lt;n&gt;</span><div class="desc">Revalidate ticket line <em>n</em> after a segment change with no fare impact — no new ticket, no re-pricing, just an updated coupon.</div></div>
           </div>
           <p><strong>Real e-ticket status codes.</strong> Every ticket carries one of the letters a real Amadeus coupon uses: <code>O</code> Open For Use, <code>V</code> Void, <code>R</code> Refunded, <code>E</code> Exchanged/Reissued (plus <code>A</code>/<code>C</code>/<code>F</code>/<code>G</code>/<code>I</code>/<code>L</code>/<code>P</code>/<code>S</code>/<code>T</code>/<code>X</code> for airport control, checked-in, flown, and so on) — shown on <code>TWD</code>, <code>TTP</code>, <code>TJQ</code> and the printed itinerary.</p>
-          <p><strong>Editing the TST</strong> before ticketing — the same follow-up entries a real reissue or net-fare sale relies on:</p>
+          <p><strong>TQT</strong> displays the stored TST — passenger list, fare/tax/total, FC, FB with NVB/NVA, FE, FT, additional collection, and commission — exactly what you'd check before deciding what to edit or before issuing. <code>TQT/T&lt;n&gt;</code> selects a specific TST by number when more than one is on file (e.g. after re-pricing more than once).</p>
+          <p><strong>Editing the TST</strong> before ticketing — the same follow-up entries a real reissue or net-fare sale relies on. <code>TTI</code> is the same command as <code>TTK</code> (both names are used in the field):</p>
           <div class="cmd-grid">
-            <div class="cmd-block"><span class="syntax">TTK/NF-&lt;amt&gt; / TTK/F&lt;amt&gt; / TTK/X&lt;amt&gt;&lt;taxcode&gt; / TTK/V&lt;ddmmm&gt;&lt;ddmmm&gt; / TTK/T&lt;amt&gt;</span><div class="desc">Net fare, fare-amount override, add a tax line, not-valid-before/after dates, and additional collection (for a reissue). Prefix <code>/T&lt;n&gt;/</code> to target one TST by number.</div></div>
+            <div class="cmd-block"><span class="syntax">TTK/V (or TTI/V)</span><div class="desc">Validate the TST as-is, with no changes — clears any pending-edit state.</div></div>
+            <div class="cmd-block"><span class="syntax">TTK/NF-&lt;amt&gt; / TTK/F&lt;amt&gt; / TTK/X&lt;amt&gt;-&lt;taxcode&gt; / TTK/V&lt;ddmmm&gt;&lt;ddmmm&gt; / TTK/T&lt;amt&gt;</span><div class="desc">Net fare, fare-amount override, add or update a tax line (the hyphen before the tax code is optional), not-valid-before/after dates, and additional collection (for a reissue). Prefix <code>/T&lt;n&gt;/</code> to target one TST by number.</div></div>
+            <div class="cmd-block"><span class="syntax">XE TST / XE TST&lt;n&gt;</span><div class="desc"><code>XE TST</code> deletes every stored TST from the active PNR; <code>XE TST1</code> (etc.) deletes just that one. Deleting the last remaining TST also clears the PNR's active fare.</div></div>
             <div class="cmd-block"><span class="syntax">FE &lt;text&gt; / FT &lt;tourcode&gt;</span><div class="desc">Set the printed endorsement and tour code — both override the auto-generated text on <code>TWD</code>/<code>TTP</code>/<code>ITR/P</code>.</div></div>
           </div>
           <p><strong>Reissuing a ticket.</strong> A reissue is a change to an already-ticketed itinerary, and it's a genuinely different workflow from a refund:</p>
@@ -435,10 +439,11 @@
                 <tr><td>TKOK / TKTL / TKXL</td><td>Ticketing arrangement — none / time limit / auto-cancel limit</td></tr>
                 <tr><td>TRAIN</td><td>Start guided scenario training</td></tr>
                 <tr><td>TRF / TRFU / TRFT / TRFP / TRFIG</td><td>Open / adjust / show taxes / process / discard an automated refund</td></tr>
-                <tr><td>TTK / TTU / TTF</td><td>Edit TST fields / flag segments for reissue / clear change flag</td></tr>
+                <tr><td>TQT</td><td>Display the stored TST(s) on the active PNR</td></tr>
+                <tr><td>TTK / TTI / TTU / TTF</td><td>Edit TST fields (TTI is the same command as TTK) / flag segments for reissue / clear change flag</td></tr>
                 <tr><td>TTP (+ /ETRV)</td><td>Issue tickets, or revalidate one with no fare change</td></tr>
                 <tr><td>TWD / TWH / TWX</td><td>Display a ticket / its history / void it</td></tr>
-                <tr><td>XE / XI</td><td>Cancel one element / cancel the itinerary</td></tr>
+                <tr><td>XE / XE TST / XE TST&lt;n&gt; / XI</td><td>Cancel one element / delete all stored TSTs / delete one TST / cancel the itinerary</td></tr>
               </tbody>
             </table>
           </div>
